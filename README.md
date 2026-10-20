@@ -143,6 +143,8 @@ python scripts/install_ha_test_deps.py
 pytest
 ```
 
+Neue Version veröffentlichen: Version in `custom_components/parceltracking/manifest.json` erhöhen, mergen und unter *Actions → Release → Run workflow* starten (oder ein Tag `vX.Y.Z` pushen). Die Action erstellt Tag, Release und die ZIP-Datei für HACS.
+
 Die API-Clients unter `custom_components/parceltracking/api/` hängen nicht von Home Assistant ab. Ein neuer Paketdienst braucht eine Unterklasse von `CarrierClient` und einen Eintrag in `CLIENTS`.
 
 ## Haftungsausschluss
