@@ -22,7 +22,8 @@ CONF_SCAN_INTERVAL: Final = "scan_interval"
 DEFAULT_SCAN_INTERVAL: Final = 30  # minutes
 
 CARRIER_NAMES: Final = {
-    "amazon": "Amazon Shipping",
+    "amazon_logistics": "Amazon",
+    "amazon": "Amazon Shipping (Verkäufer)",
     "dhl": "DHL",
     "dpd": "DPD",
     "gls": "GLS",
@@ -32,6 +33,7 @@ CARRIER_NAMES: Final = {
 
 TRACKING_URLS: Final = {
     "amazon": "https://track.amazon.de/tracking/{}",
+    "amazon_logistics": "https://track.amazon.de/tracking/{}",
     "dhl": "https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode={}",
     "dpd": "https://tracking.dpd.de/status/de_DE/parcel/{}",
     "gls": "https://gls-group.eu/DE/de/paketverfolgung?match={}",

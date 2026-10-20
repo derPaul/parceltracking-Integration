@@ -10,6 +10,7 @@ PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     (carrier, re.compile(pattern))
     for carrier, pattern in (
         ("ups", r"1Z[0-9A-Z]{16}"),
+        ("amazon_logistics", r"TB[ACM]\d{12}"),
         ("amazon", r"TB[ACM]\d{12}"),
         ("amazon", r"(?:UK|IT|ES|FR)\d{10}"),
         ("dhl", r"JJD\d{15,21}"),

@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date, datetime
 
 from custom_components.parceltracking.api.amazon import parse_amazon
+from custom_components.parceltracking.api.amazon_logistics import (
+    parse_amazon_logistics,
+)
 from custom_components.parceltracking.api.dhl import parse_dhl
 from custom_components.parceltracking.api.dpd import parse_dpd
 from custom_components.parceltracking.api.gls import parse_gls
@@ -262,6 +266,58 @@ def test_amazon() -> None:
     }
     result = parse_amazon(data, "UK0123")
     assert result.status is ParcelStatus.OUT_FOR_DELIVERY
-    assert result.status_text == "Out for delivery"
+    assert result.status_text == "In Zustellung"
     assert result.location == "London, GB"
     assert isinstance(result.estimated_delivery, (datetime, date))
+
+
+def test_amazon_logistics() -> None:
+    # The tracker embeds progressTracker and eventHistory as JSON strings.
+    data = {
+        "progressTracker": json.dumps(
+            {
+                "summary": {
+                    "status": "OutForDelivery",
+                    "metadata": {
+                        "expectedDeliveryDate": {"stringValue": "2026-10-20T19:00:00Z"}
+                    },
+                }
+            }
+        ),
+        "eventHistory": json.dumps(
+            {
+                "eventHistory": [
+                    {
+                        "eventCode": "ArrivedAtCarrierFacility",
+                        "eventTime": "2026-10-19T21:00:00Z",
+                        "location": {"city": "Mönchengladbach", "countryCode": "DE"},
+                    },
+                    {
+                        "eventCode": "OutForDelivery",
+                        "eventTime": "2026-10-20T06:30:00Z",
+                        "location": {"city": "Köln", "countryCode": "DE"},
+                    },
+                ]
+            }
+        ),
+    }
+    result = parse_amazon_logistics(data, "TBA123456789012")
+    assert result.status is ParcelStatus.OUT_FOR_DELIVERY
+    assert result.status_text == "In Zustellung"
+    assert result.location == "Köln, DE"
+    assert result.events[1].description == "Im Versandzentrum angekommen"
+    assert result.estimated_delivery is not None
+
+
+def test_amazon_logistics_status_from_events_and_empty() -> None:
+    data = {
+        "eventHistory": {
+            "eventHistory": [
+                {"eventCode": "Departed", "eventTime": "2026-10-19T10:00:00Z"},
+                {"eventCode": "Delivered", "eventTime": "2026-10-20T12:00:00Z"},
+            ]
+        }
+    }
+    assert parse_amazon_logistics(data, "TBA1").status is ParcelStatus.DELIVERED
+    empty = {"progressTracker": "{}", "eventHistory": '{"eventHistory": []}'}
+    assert parse_amazon_logistics(empty, "TBA1").status is ParcelStatus.NOT_FOUND

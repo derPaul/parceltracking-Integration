@@ -8,6 +8,7 @@ from typing import Any
 import aiohttp
 
 from .amazon import AmazonClient
+from .amazon_logistics import AmazonLogisticsClient
 from .base import CarrierClient
 from .dhl import DhlClient
 from .dpd import DpdClient
@@ -26,6 +27,7 @@ from .ups import UpsClient
 
 CLIENTS: dict[str, type[CarrierClient]] = {
     "amazon": AmazonClient,
+    "amazon_logistics": AmazonLogisticsClient,
     "dhl": DhlClient,
     "dpd": DpdClient,
     "gls": GlsClient,

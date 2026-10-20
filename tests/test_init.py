@@ -84,6 +84,18 @@ async def test_config_flow_dpd_without_credentials(hass: HomeAssistant) -> None:
     assert result["title"] == "DPD"
 
 
+async def test_config_flow_amazon_without_credentials(hass: HomeAssistant) -> None:
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    with patch("custom_components.parceltracking.async_setup_entry", return_value=True):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"carrier": "amazon_logistics"}
+        )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Amazon"
+
+
 async def test_setup_sensors_and_services(hass: HomeAssistant) -> None:
     entry = _entry(
         [

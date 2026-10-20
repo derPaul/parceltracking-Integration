@@ -1,4 +1,4 @@
-"""Parcel tracking for DHL, DPD, GLS, Hermes, UPS and Amazon Shipping."""
+"""Parcel tracking for DHL, DPD, GLS, Hermes, UPS and Amazon."""
 
 from __future__ import annotations
 

@@ -11,7 +11,7 @@ from custom_components.parceltracking.api.detect import detect_carriers
     ("number", "expected"),
     [
         ("1Z999AA10123456784", ["ups"]),
-        ("TBA123456789012", ["amazon"]),
+        ("TBA123456789012", ["amazon_logistics", "amazon"]),
         ("UK0123456789", ["amazon"]),
         ("JJD000390007827538398", ["dhl"]),
         ("RR123456789DE", ["dhl"]),

@@ -33,7 +33,9 @@ Rules:
 - Ignore order numbers, customer numbers, invoice numbers, postal codes,
   phone numbers, dates and prices.
 - If the carrier is recognizable (logo or text), set carrier to one of:
-  amazon, dhl, dpd, gls, hermes, ups. Otherwise use unknown.
+  amazon_logistics (delivered by Amazon itself, numbers start with TBA),
+  amazon (Amazon Shipping for sellers), dhl, dpd, gls, hermes, ups.
+  Otherwise use unknown.
 - If there is no tracking number, return an empty list.
 """
 

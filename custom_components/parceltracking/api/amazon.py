@@ -105,11 +105,36 @@ class AmazonClient(CarrierClient):
         return parse_amazon(data, tracking_number)
 
 
-def _humanize(code: str | None) -> str:
-    """Turn 'OutForDelivery' into 'Out for delivery'."""
+EVENT_TEXTS = {
+    "PreTransit": "Sendung angekündigt",
+    "ReadyForReceive": "Sendung angekündigt",
+    "PickupDone": "Sendung abgeholt",
+    "InTransit": "Unterwegs",
+    "Departed": "Hat das Versandzentrum verlassen",
+    "ArrivedAtCarrierFacility": "Im Versandzentrum angekommen",
+    "OutForDelivery": "In Zustellung",
+    "AvailableForPickup": "Abholbereit",
+    "AwaitingCustomerPickup": "Abholbereit",
+    "Delivered": "Zugestellt",
+    "DeliveryAttempted": "Zustellversuch",
+    "Undeliverable": "Nicht zustellbar",
+    "Lost": "Verloren",
+    "Rejected": "Annahme verweigert",
+    "PickupCancelled": "Abholung storniert",
+    "ReturnInitiated": "Rücksendung eingeleitet",
+    "Returned": "Zurückgesendet",
+    "ReturnInTransit": "Rücksendung unterwegs",
+}
+
+
+def describe(code: str | None) -> str:
+    """Return a German text for an Amazon event code.
+
+    Unknown codes are split into words: 'SomeNewCode' -> 'Some new code'.
+    """
     if not code:
         return ""
-    return re.sub(r"(?<!^)(?=[A-Z])", " ", code).capitalize()
+    return EVENT_TEXTS.get(code) or re.sub(r"(?<!^)(?=[A-Z])", " ", code).capitalize()
 
 
 def parse_amazon(data: Any, tracking_number: str) -> TrackingResult:
@@ -124,7 +149,7 @@ def parse_amazon(data: Any, tracking_number: str) -> TrackingResult:
         events.append(
             TrackingEvent(
                 timestamp=parse_datetime(item.get("eventTime")),
-                description=_humanize(item.get("eventCode")),
+                description=describe(item.get("eventCode")),
                 location=join_location(loc.get("city"), loc.get("countryCode")),
             )
         )
@@ -137,6 +162,6 @@ def parse_amazon(data: Any, tracking_number: str) -> TrackingResult:
         tracking_number,
         STATUS_MAP.get(code or "", ParcelStatus.UNKNOWN),
         events,
-        status_text=_humanize(code) or None,
+        status_text=describe(code) or None,
         estimated_delivery=parse_datetime(payload.get("promisedDeliveryDate")),
     )
