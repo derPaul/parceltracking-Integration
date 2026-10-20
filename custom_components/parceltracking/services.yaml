@@ -1,0 +1,83 @@
+add_package:
+  fields:
+    tracking_number:
+      required: true
+      example: "00340434161094042557"
+      selector:
+        text:
+    carrier:
+      selector:
+        select:
+          translation_key: carrier
+          options:
+            - amazon
+            - dhl
+            - dpd
+            - gls
+            - hermes
+            - ups
+    name:
+      example: "Neue Kopfhörer"
+      selector:
+        text:
+
+add_package_from_image:
+  fields:
+    image:
+      required: true
+      selector:
+        media:
+          accept:
+            - image/*
+    ai_task_entity:
+      selector:
+        entity:
+          domain: ai_task
+    name:
+      example: "Neue Kopfhörer"
+      selector:
+        text:
+    add:
+      default: true
+      selector:
+        boolean:
+
+detect_carrier:
+  fields:
+    tracking_number:
+      required: true
+      example: "1Z999AA10123456784"
+      selector:
+        text:
+
+remove_package:
+  fields:
+    tracking_number:
+      required: true
+      selector:
+        text:
+    carrier:
+      selector:
+        select:
+          translation_key: carrier
+          options:
+            - amazon
+            - dhl
+            - dpd
+            - gls
+            - hermes
+            - ups
+
+remove_delivered:
+  fields:
+    carrier:
+      selector:
+        select:
+          translation_key: carrier
+          options:
+            - amazon
+            - dhl
+            - dpd
+            - gls
+            - hermes
+            - ups

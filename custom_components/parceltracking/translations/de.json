@@ -1,0 +1,266 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Paketdienst wählen",
+        "description": "Jeder Paketdienst wird einzeln mit eigenen API-Zugangsdaten hinzugefügt.",
+        "data": {
+          "carrier": "Paketdienst"
+        }
+      },
+      "credentials": {
+        "title": "{carrier}",
+        "description": "Gib deine API-Zugangsdaten für {carrier} ein. Leer lassen, falls keine nötig sind.",
+        "data": {
+          "api_key": "API-Schlüssel",
+          "client_id": "Client-ID",
+          "client_secret": "Client-Secret",
+          "refresh_token": "Refresh-Token",
+          "region": "Region",
+          "business_id": "Shipping-Business-ID",
+          "carrier_id": "Carrier-ID"
+        },
+        "data_description": {
+          "api_key": "DHL: developer.dhl.com (Shipment Tracking - Unified). GLS: gls-group.eu/DE/de/api-zugang-registrieren. Hermes: optional.",
+          "client_id": "UPS: App auf developer.ups.com. Amazon: LWA-Client-ID deiner SP-API-App.",
+          "refresh_token": "LWA-Refresh-Token aus der Autorisierung deiner SP-API-App.",
+          "business_id": "Wert des Headers x-amzn-shipping-business-id, z. B. AmazonShipping_UK.",
+          "carrier_id": "Amazon-Carrier-ID für die Sendungsverfolgung, z. B. AMZN_UK."
+        }
+      },
+      "reauth_confirm": {
+        "title": "{carrier}",
+        "description": "Die Zugangsdaten für {carrier} wurden abgelehnt. Bitte gib neue ein.",
+        "data": {
+          "api_key": "API-Schlüssel",
+          "client_id": "Client-ID",
+          "client_secret": "Client-Secret",
+          "refresh_token": "Refresh-Token",
+          "region": "Region",
+          "business_id": "Shipping-Business-ID",
+          "carrier_id": "Carrier-ID"
+        },
+        "data_description": {
+          "api_key": "DHL: developer.dhl.com (Shipment Tracking - Unified). GLS: gls-group.eu/DE/de/api-zugang-registrieren. Hermes: optional.",
+          "client_id": "UPS: App auf developer.ups.com. Amazon: LWA-Client-ID deiner SP-API-App.",
+          "refresh_token": "LWA-Refresh-Token aus der Autorisierung deiner SP-API-App.",
+          "business_id": "Wert des Headers x-amzn-shipping-business-id, z. B. AmazonShipping_UK.",
+          "carrier_id": "Amazon-Carrier-ID für die Sendungsverfolgung, z. B. AMZN_UK."
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Die Zugangsdaten wurden vom Paketdienst abgelehnt.",
+      "cannot_connect": "Die API des Paketdienstes ist nicht erreichbar.",
+      "unknown": "Unerwarteter Fehler."
+    },
+    "abort": {
+      "already_configured": "Dieser Paketdienst ist bereits eingerichtet.",
+      "all_configured": "Alle Paketdienste sind bereits eingerichtet.",
+      "reauth_successful": "Zugangsdaten aktualisiert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Paketverfolgung",
+        "menu_options": {
+          "add_package": "Paket hinzufügen",
+          "remove_package": "Pakete entfernen",
+          "settings": "Einstellungen"
+        }
+      },
+      "add_package": {
+        "title": "Paket hinzufügen",
+        "data": {
+          "tracking_number": "Sendungsnummer",
+          "name": "Name"
+        },
+        "data_description": {
+          "name": "Optionaler Anzeigename, z. B. der Inhalt."
+        }
+      },
+      "remove_package": {
+        "title": "Pakete entfernen",
+        "data": {
+          "packages": "Pakete"
+        }
+      },
+      "settings": {
+        "title": "Einstellungen",
+        "data": {
+          "scan_interval": "Aktualisierungsintervall"
+        },
+        "data_description": {
+          "scan_interval": "Minuten zwischen den Abfragen. Achte auf dein API-Kontingent (DHL: standardmäßig 250 Anfragen/Tag)."
+        }
+      }
+    },
+    "error": {
+      "invalid_tracking_number": "Bitte gib eine Sendungsnummer ein.",
+      "already_tracked": "Dieses Paket wird bereits verfolgt.",
+      "wrong_carrier": "Diese Nummer sieht nach {detected} aus. Erneut absenden, um sie trotzdem hinzuzufügen."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "parcel": {
+        "state": {
+          "not_found": "Noch nicht gefunden",
+          "pre_transit": "Angekündigt",
+          "in_transit": "Unterwegs",
+          "out_for_delivery": "In Zustellung",
+          "ready_for_pickup": "Abholbereit",
+          "delivered": "Zugestellt",
+          "exception": "Problem",
+          "returned": "Retoure",
+          "unknown": "Unbekannt"
+        },
+        "state_attributes": {
+          "carrier": {
+            "name": "Paketdienst"
+          },
+          "tracking_number": {
+            "name": "Sendungsnummer"
+          },
+          "tracking_url": {
+            "name": "Sendungsverfolgung"
+          },
+          "status_text": {
+            "name": "Statustext"
+          },
+          "location": {
+            "name": "Ort"
+          },
+          "last_update": {
+            "name": "Letzte Aktualisierung"
+          },
+          "estimated_delivery": {
+            "name": "Voraussichtliche Zustellung"
+          },
+          "events": {
+            "name": "Ereignisse"
+          }
+        }
+      },
+      "active_parcels": {
+        "name": "Aktive Pakete"
+      }
+    }
+  },
+  "selector": {
+    "carrier": {
+      "options": {
+        "amazon": "Amazon Shipping",
+        "dhl": "DHL",
+        "dpd": "DPD",
+        "gls": "GLS",
+        "hermes": "Hermes",
+        "ups": "UPS"
+      }
+    },
+    "region": {
+      "options": {
+        "eu": "Europa",
+        "na": "Nordamerika",
+        "fe": "Fernost"
+      }
+    }
+  },
+  "services": {
+    "add_package": {
+      "name": "Paket hinzufügen",
+      "description": "Startet die Verfolgung eines Pakets.",
+      "fields": {
+        "carrier": {
+          "name": "Paketdienst",
+          "description": "Paketdienst des Pakets. Leer lassen, um ihn anhand der Sendungsnummer zu erkennen."
+        },
+        "tracking_number": {
+          "name": "Sendungsnummer",
+          "description": "Die Sendungsnummer des Pakets."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Optionaler Anzeigename, z. B. der Inhalt."
+        }
+      }
+    },
+    "add_package_from_image": {
+      "name": "Pakete aus Bild hinzufügen",
+      "description": "Liest Sendungsnummern mit einer AI-Task-Entität aus einem Foto oder Screenshot, erkennt den Paketdienst und startet die Verfolgung.",
+      "fields": {
+        "image": {
+          "name": "Bild",
+          "description": "Foto eines Paketaufklebers, Screenshot einer Versandbestätigung oder Kamerabild."
+        },
+        "ai_task_entity": {
+          "name": "AI-Task-Entität",
+          "description": "AI-Task-Entität mit Bildunterstützung. Standard ist die bevorzugte AI-Task-Entität."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Optionaler Anzeigename, z. B. der Inhalt."
+        },
+        "add": {
+          "name": "Pakete hinzufügen",
+          "description": "Ausschalten, um die erkannten Nummern nur zurückzugeben."
+        }
+      }
+    },
+    "detect_carrier": {
+      "name": "Paketdienst erkennen",
+      "description": "Gibt zurück, zu welchem Paketdienst eine Sendungsnummer wahrscheinlich gehört.",
+      "fields": {
+        "tracking_number": {
+          "name": "Sendungsnummer",
+          "description": "Die Sendungsnummer des Pakets."
+        }
+      }
+    },
+    "remove_package": {
+      "name": "Pakete entfernen",
+      "description": "Beendet die Verfolgung eines Pakets.",
+      "fields": {
+        "tracking_number": {
+          "name": "Sendungsnummer",
+          "description": "Die Sendungsnummer des Pakets."
+        },
+        "carrier": {
+          "name": "Paketdienst",
+          "description": "Nur bei diesem Paketdienst suchen."
+        }
+      }
+    },
+    "remove_delivered": {
+      "name": "Zugestellte Pakete entfernen",
+      "description": "Beendet die Verfolgung aller zugestellten Pakete.",
+      "fields": {
+        "carrier": {
+          "name": "Paketdienst",
+          "description": "Nur bei diesem Paketdienst suchen."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "carrier_not_configured": {
+      "message": "{carrier} ist nicht eingerichtet oder nicht geladen."
+    },
+    "package_not_found": {
+      "message": "Es wird kein Paket mit der Sendungsnummer {tracking_number} verfolgt."
+    },
+    "no_matching_carrier": {
+      "message": "Kein eingerichteter Paketdienst passt zur Sendungsnummer {tracking_number} (Format passt zu: {carriers})."
+    },
+    "no_tracking_number_in_image": {
+      "message": "Im Bild wurde keine Sendungsnummer gefunden."
+    },
+    "ai_task_unavailable": {
+      "message": "Die AI-Task-Integration ist nicht eingerichtet. Richte zuerst eine KI-Integration mit Bildunterstützung ein."
+    },
+    "image_analysis_failed": {
+      "message": "Das Bild konnte nicht ausgewertet werden: {error}"
+    }
+  }
+}

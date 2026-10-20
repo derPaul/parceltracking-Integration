@@ -1,0 +1,266 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Choose carrier",
+        "description": "Each carrier is added separately with its own API credentials.",
+        "data": {
+          "carrier": "Carrier"
+        }
+      },
+      "credentials": {
+        "title": "{carrier}",
+        "description": "Enter your API credentials for {carrier}. Leave the form empty if none are required.",
+        "data": {
+          "api_key": "API key",
+          "client_id": "Client ID",
+          "client_secret": "Client secret",
+          "refresh_token": "Refresh token",
+          "region": "Region",
+          "business_id": "Shipping business ID",
+          "carrier_id": "Carrier ID"
+        },
+        "data_description": {
+          "api_key": "DHL: developer.dhl.com (Shipment Tracking - Unified). GLS: gls-group.eu/DE/en/register-api-access. Hermes: optional.",
+          "client_id": "UPS: app from developer.ups.com. Amazon: LWA client ID of your SP-API app.",
+          "refresh_token": "LWA refresh token from authorizing your SP-API app.",
+          "business_id": "Value of the x-amzn-shipping-business-id header, e.g. AmazonShipping_UK.",
+          "carrier_id": "Amazon carrier ID used for tracking, e.g. AMZN_UK."
+        }
+      },
+      "reauth_confirm": {
+        "title": "{carrier}",
+        "description": "The credentials for {carrier} were rejected. Please enter new ones.",
+        "data": {
+          "api_key": "API key",
+          "client_id": "Client ID",
+          "client_secret": "Client secret",
+          "refresh_token": "Refresh token",
+          "region": "Region",
+          "business_id": "Shipping business ID",
+          "carrier_id": "Carrier ID"
+        },
+        "data_description": {
+          "api_key": "DHL: developer.dhl.com (Shipment Tracking - Unified). GLS: gls-group.eu/DE/en/register-api-access. Hermes: optional.",
+          "client_id": "UPS: app from developer.ups.com. Amazon: LWA client ID of your SP-API app.",
+          "refresh_token": "LWA refresh token from authorizing your SP-API app.",
+          "business_id": "Value of the x-amzn-shipping-business-id header, e.g. AmazonShipping_UK.",
+          "carrier_id": "Amazon carrier ID used for tracking, e.g. AMZN_UK."
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "The credentials were rejected by the carrier.",
+      "cannot_connect": "Could not reach the carrier API.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This carrier is already set up.",
+      "all_configured": "All carriers are already set up.",
+      "reauth_successful": "Credentials updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Parcel tracking",
+        "menu_options": {
+          "add_package": "Add package",
+          "remove_package": "Remove packages",
+          "settings": "Settings"
+        }
+      },
+      "add_package": {
+        "title": "Add package",
+        "data": {
+          "tracking_number": "Tracking number",
+          "name": "Name"
+        },
+        "data_description": {
+          "name": "Optional friendly name, e.g. what's inside."
+        }
+      },
+      "remove_package": {
+        "title": "Remove packages",
+        "data": {
+          "packages": "Packages"
+        }
+      },
+      "settings": {
+        "title": "Settings",
+        "data": {
+          "scan_interval": "Update interval"
+        },
+        "data_description": {
+          "scan_interval": "Minutes between updates. Mind your API quota (DHL: 250 requests/day by default)."
+        }
+      }
+    },
+    "error": {
+      "invalid_tracking_number": "Please enter a tracking number.",
+      "already_tracked": "This package is already tracked.",
+      "wrong_carrier": "This number looks like {detected}. Submit again to add it anyway."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "parcel": {
+        "state": {
+          "not_found": "Not found yet",
+          "pre_transit": "Announced",
+          "in_transit": "In transit",
+          "out_for_delivery": "Out for delivery",
+          "ready_for_pickup": "Ready for pickup",
+          "delivered": "Delivered",
+          "exception": "Problem",
+          "returned": "Returned",
+          "unknown": "Unknown"
+        },
+        "state_attributes": {
+          "carrier": {
+            "name": "Carrier"
+          },
+          "tracking_number": {
+            "name": "Tracking number"
+          },
+          "tracking_url": {
+            "name": "Tracking link"
+          },
+          "status_text": {
+            "name": "Status text"
+          },
+          "location": {
+            "name": "Location"
+          },
+          "last_update": {
+            "name": "Last update"
+          },
+          "estimated_delivery": {
+            "name": "Estimated delivery"
+          },
+          "events": {
+            "name": "Events"
+          }
+        }
+      },
+      "active_parcels": {
+        "name": "Active parcels"
+      }
+    }
+  },
+  "selector": {
+    "carrier": {
+      "options": {
+        "amazon": "Amazon Shipping",
+        "dhl": "DHL",
+        "dpd": "DPD",
+        "gls": "GLS",
+        "hermes": "Hermes",
+        "ups": "UPS"
+      }
+    },
+    "region": {
+      "options": {
+        "eu": "Europe",
+        "na": "North America",
+        "fe": "Far East"
+      }
+    }
+  },
+  "services": {
+    "add_package": {
+      "name": "Add package",
+      "description": "Start tracking a package.",
+      "fields": {
+        "carrier": {
+          "name": "Carrier",
+          "description": "Carrier of the package. Leave empty to detect it from the tracking number."
+        },
+        "tracking_number": {
+          "name": "Tracking number",
+          "description": "The tracking number of the package."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Optional friendly name, e.g. what's inside."
+        }
+      }
+    },
+    "add_package_from_image": {
+      "name": "Add packages from image",
+      "description": "Reads tracking numbers from a photo or screenshot with an AI Task entity, detects the carrier and starts tracking.",
+      "fields": {
+        "image": {
+          "name": "Image",
+          "description": "Photo of a shipping label, a screenshot of a shipping e-mail or a camera snapshot."
+        },
+        "ai_task_entity": {
+          "name": "AI Task entity",
+          "description": "AI Task entity with image support. Defaults to the preferred AI Task entity."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Optional friendly name, e.g. what's inside."
+        },
+        "add": {
+          "name": "Add packages",
+          "description": "Turn off to only return the detected numbers."
+        }
+      }
+    },
+    "detect_carrier": {
+      "name": "Detect carrier",
+      "description": "Returns which carrier a tracking number most likely belongs to.",
+      "fields": {
+        "tracking_number": {
+          "name": "Tracking number",
+          "description": "The tracking number of the package."
+        }
+      }
+    },
+    "remove_package": {
+      "name": "Remove packages",
+      "description": "Stop tracking a package.",
+      "fields": {
+        "tracking_number": {
+          "name": "Tracking number",
+          "description": "The tracking number of the package."
+        },
+        "carrier": {
+          "name": "Carrier",
+          "description": "Only search this carrier."
+        }
+      }
+    },
+    "remove_delivered": {
+      "name": "Remove delivered packages",
+      "description": "Stop tracking all delivered packages.",
+      "fields": {
+        "carrier": {
+          "name": "Carrier",
+          "description": "Only search this carrier."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "carrier_not_configured": {
+      "message": "{carrier} is not set up or not loaded."
+    },
+    "package_not_found": {
+      "message": "No package with tracking number {tracking_number} is tracked."
+    },
+    "no_matching_carrier": {
+      "message": "No set up carrier matches tracking number {tracking_number} (format fits: {carriers})."
+    },
+    "no_tracking_number_in_image": {
+      "message": "No tracking number was found in the image."
+    },
+    "ai_task_unavailable": {
+      "message": "The AI Task integration is not set up. Set up an AI integration with image support first."
+    },
+    "image_analysis_failed": {
+      "message": "The image could not be analyzed: {error}"
+    }
+  }
+}
