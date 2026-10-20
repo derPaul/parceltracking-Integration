@@ -1,4 +1,4 @@
-"""Amazon's own deliveries (TBA numbers) via the tracker behind track.amazon.de.
+"""Amazon's own deliveries (TBA…, DE…) via the tracker behind track.amazon.com.
 
 Amazon offers no API with personal tokens for regular orders. The public
 tracking page works without login, so this endpoint is used without
@@ -20,7 +20,7 @@ from .models import (
     parse_datetime,
 )
 
-TRACK_URL = "https://track.amazon.de/api/tracker/{}"
+TRACK_URL = "https://track.amazon.com/api/tracker/{}"
 
 
 class AmazonLogisticsClient(CarrierClient):
@@ -50,7 +50,7 @@ def _load(value: Any) -> Any:
 
 
 def parse_amazon_logistics(data: Any, tracking_number: str) -> TrackingResult:
-    """Convert a track.amazon.de tracker response."""
+    """Convert a track.amazon.com tracker response."""
     if not isinstance(data, dict):
         return TrackingResult.not_found(tracking_number)
 

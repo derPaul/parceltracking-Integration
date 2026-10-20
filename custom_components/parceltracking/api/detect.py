@@ -11,6 +11,8 @@ PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     for carrier, pattern in (
         ("ups", r"1Z[0-9A-Z]{16}"),
         ("amazon_logistics", r"TB[ACM]\d{12}"),
+        # Amazon Logistics in Europe: country code + 10 digits, e.g. DE5960468380
+        ("amazon_logistics", r"(?:DE|AT|UK|GB|FR|IT|ES|NL|BE|PL|SE)\d{10}"),
         ("amazon", r"TB[ACM]\d{12}"),
         ("amazon", r"(?:UK|IT|ES|FR)\d{10}"),
         ("dhl", r"JJD\d{15,21}"),

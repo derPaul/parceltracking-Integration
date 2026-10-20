@@ -32,8 +32,8 @@ CARRIER_NAMES: Final = {
 }
 
 TRACKING_URLS: Final = {
-    "amazon": "https://track.amazon.de/tracking/{}",
-    "amazon_logistics": "https://track.amazon.de/tracking/{}",
+    "amazon": "https://track.amazon.com/tracking/{}",
+    "amazon_logistics": "https://track.amazon.com/tracking/{}",
     "dhl": "https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode={}",
     "dpd": "https://tracking.dpd.de/status/de_DE/parcel/{}",
     "gls": "https://gls-group.eu/DE/de/paketverfolgung?match={}",
