@@ -3,6 +3,8 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  # Manual start: tags and releases the version from manifest.json.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,13 +14,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check manifest version matches tag
+      - name: Read version from manifest
+        id: version
         run: |
-          version=$(jq -r .version custom_components/parceltracking/manifest.json)
-          test "v$version" = "$GITHUB_REF_NAME" || { echo "manifest.json has $version, tag is $GITHUB_REF_NAME"; exit 1; }
+          tag="v$(jq -r .version custom_components/parceltracking/manifest.json)"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$tag" != "$GITHUB_REF_NAME" ]; then
+            echo "manifest.json says $tag, tag is $GITHUB_REF_NAME"; exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - name: Build zip
         run: cd custom_components/parceltracking && zip -r ../../parceltracking.zip . -x '*__pycache__*'
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           files: parceltracking.zip
           generate_release_notes: true
