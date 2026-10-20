@@ -37,21 +37,21 @@ Pakete verwaltest du über **Konfigurieren** an der Integration: *Paket hinzufü
 | **GLS** | API-Key | [gls-group.eu – API-Zugang registrieren](https://gls-group.eu/DE/en/register-api-access). Der Key wird als `x-api-key` an `api-tt.de.gls-group.com` geschickt. |
 | **DPD** | – | DPD bietet Privatkunden keine Tracking-API mit eigenem Token. Die Integration nutzt den Endpunkt von tracking.dpd.de ohne Zugangsdaten. |
 | **Hermes** | optional API-Key | Hermes vergibt offizielle API-Zugänge (HSI) nur an Geschäftskunden. Die Integration nutzt den Endpunkt von myhermes.de. Ein eingetragener Key wird als `x-api-key` mitgeschickt. |
-| **Amazon** | – | Für Pakete, die Amazon selbst zustellt (Sendungsnummer `TBA…`). Nutzt ohne Zugangsdaten den Endpunkt der Sendungsverfolgung auf track.amazon.de. |
+| **Amazon** | – | Für Pakete, die Amazon selbst zustellt (Sendungsnummer `TBA…` oder z. B. `DE` + 10 Ziffern). Nutzt ohne Zugangsdaten den Endpunkt der Sendungsverfolgung auf track.amazon.com. |
 | **Amazon Shipping (Verkäufer)** | LWA-Client-ID, Client-Secret, Refresh-Token, Region, Business-ID, Carrier-ID | Selling Partner API mit der Rolle *Amazon Shipping*. Siehe den Hinweis unten. |
 
 ### Hinweis zu Amazon
 
 Amazon bietet für normale Bestellungen **keine Tracking-API mit eigenem Token** an. Deshalb gibt es zwei Einträge:
 
-- **Amazon:** Die richtige Wahl für deine Bestellungen. Damit verfolgst du Pakete, die Amazon selbst zustellt (`TBA…`). Wie bei DPD und Hermes wird der Endpunkt der öffentlichen Sendungsverfolgung auf track.amazon.de genutzt, ganz ohne Anmeldung. Er ist nicht offiziell dokumentiert und kann sich jederzeit ändern. Stellt DHL, Hermes oder ein anderer Paketdienst die Bestellung zu, findest du dessen Sendungsnummer in der Bestellung unter *Lieferung verfolgen*. Diese fügst du dann beim jeweiligen Paketdienst hinzu.
+- **Amazon:** Die richtige Wahl für deine Bestellungen. Damit verfolgst du Pakete, die Amazon selbst zustellt (`TBA…` oder z. B. `DE5960468380`). Wie bei DPD und Hermes wird der Endpunkt der öffentlichen Sendungsverfolgung auf track.amazon.com genutzt, ganz ohne Anmeldung. Er ist nicht offiziell dokumentiert und kann sich jederzeit ändern. Stellt DHL, Hermes oder ein anderer Paketdienst die Bestellung zu, findest du dessen Sendungsnummer in der Bestellung unter *Lieferung verfolgen*. Diese fügst du dann beim jeweiligen Paketdienst hinzu.
 - **Amazon Shipping (Verkäufer):** Nur für Sendungen, die über den Verkäuferdienst Amazon Shipping verschickt wurden. Nutzt die *Amazon Shipping API v2* und braucht eine registrierte SP-API-App. `business_id` (z. B. `AmazonShipping_UK`) und `carrier_id` (z. B. `AMZN_UK`) hängen vom Marktplatz ab, für Deutschland ist dort kein Marktplatz dokumentiert.
 
 ## Automatische Erkennung des Paketdienstes
 
 Gibst du beim Dienst `add_package` keinen `carrier` an, erkennt die Integration ihn selbst:
 
-1. **Format der Nummer.** Einige Formate sind eindeutig, z. B. `1Z…` für UPS, `JJD…` und `…DE` (Deutsche Post) für DHL, `TBA…` für Amazon und 8-stellige Buchstaben-Ziffern-Codes für GLS.
+1. **Format der Nummer.** Einige Formate sind eindeutig, z. B. `1Z…` für UPS, `JJD…` und `…DE` (Deutsche Post) für DHL, `TBA…` und `DE` + 10 Ziffern für Amazon und 8-stellige Buchstaben-Ziffern-Codes für GLS.
 2. **Abfrage bei den Paketdiensten.** Manche Formate passen zu mehreren Diensten: 14 Ziffern zu DPD oder Hermes, 12 Ziffern zu DHL oder GLS. Dann fragt die Integration nacheinander die passenden *eingerichteten* Dienste ab und nimmt den ersten, der die Nummer kennt.
 3. **Fallback.** Kennt noch keiner die Nummer, weil das Paket noch nicht gescannt wurde, nimmt sie den wahrscheinlichsten Dienst.
 
@@ -153,4 +153,4 @@ Die API-Clients unter `custom_components/parceltracking/api/` hängen nicht von 
 
 ## Haftungsausschluss
 
-Kein offizielles Produkt der genannten Paketdienste. Die Endpunkte von DPD, Hermes und Amazon (track.amazon.de) sind nicht offiziell dokumentiert und können sich jederzeit ändern.
+Kein offizielles Produkt der genannten Paketdienste. Die Endpunkte von DPD, Hermes und Amazon (track.amazon.com) sind nicht offiziell dokumentiert und können sich jederzeit ändern.
