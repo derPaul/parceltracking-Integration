@@ -6,6 +6,8 @@ Eine Custom Integration für Home Assistant, die Pakete von **DHL, DPD, GLS, Her
 - Attribute: Statustext, Ort, letzte Aktualisierung, voraussichtliche Zustellung, die letzten 10 Ereignisse und ein Link zur Sendungsverfolgung.
 - Pro Paketdienst ein Sensor **„Aktive Pakete“** mit der Anzahl der Pakete, die noch unterwegs sind.
 - Pakete lassen sich über die Oberfläche oder per Dienst (`parceltracking.add_package` …) verwalten, also auch per Automation.
+- **Der Paketdienst wird automatisch erkannt.** Ist er nicht eindeutig, fragt die Integration die eingerichteten Paketdienste ab (siehe unten).
+- **Sendungsnummern aus Bildern auslesen**, z. B. von einem Foto des Paketaufklebers oder einem Screenshot der Versandbestätigung. Dafür wird die KI genutzt, die du in Home Assistant eingerichtet hast.
 - Zugestellte Pakete werden nicht mehr abgefragt. Das schont das API-Kontingent.
 - Werden die Zugangsdaten abgelehnt, startet Home Assistant automatisch die erneute Anmeldung.
 
@@ -41,15 +43,56 @@ Pakete verwaltest du über **Konfigurieren** an der Integration: *Paket hinzufü
 
 Amazon hat **keine öffentliche Tracking-API für normale Amazon-Bestellungen**. Die Integration nutzt die *Amazon Shipping API v2* (`GET /shipping/v2/tracking`). Damit lassen sich nur Sendungen verfolgen, die über **Amazon Shipping** verschickt wurden, z. B. als Verkäufer. Dafür brauchst du eine registrierte SP-API-App. `business_id` (z. B. `AmazonShipping_UK`) und `carrier_id` (z. B. `AMZN_UK`) hängen vom Marktplatz ab.
 
+## Automatische Erkennung des Paketdienstes
+
+Gibst du beim Dienst `add_package` keinen `carrier` an, erkennt die Integration ihn selbst:
+
+1. **Format der Nummer.** Einige Formate sind eindeutig, z. B. `1Z…` für UPS, `JJD…` und `…DE` (Deutsche Post) für DHL, `TBA…` für Amazon und 8-stellige Buchstaben-Ziffern-Codes für GLS.
+2. **Abfrage bei den Paketdiensten.** Manche Formate passen zu mehreren Diensten: 14 Ziffern zu DPD oder Hermes, 12 Ziffern zu DHL oder GLS. Dann fragt die Integration nacheinander die passenden *eingerichteten* Dienste ab und nimmt den ersten, der die Nummer kennt.
+3. **Fallback.** Kennt noch keiner die Nummer, weil das Paket noch nicht gescannt wurde, nimmt sie den wahrscheinlichsten Dienst.
+
+Die Antwort des Dienstes verrät mit `detection` (`pattern`, `api`, `guess` oder `given`), wie der Paketdienst bestimmt wurde. Mit `parceltracking.detect_carrier` prüfst du eine Nummer, ohne sie hinzuzufügen.
+
+Fügst du über *Konfigurieren* eine Nummer hinzu, die eindeutig zu einem anderen Paketdienst gehört, bekommst du eine Warnung. Sendest du sie erneut ab, wird sie trotzdem hinzugefügt.
+
+## Sendungsnummern aus Bildern
+
+Der Dienst `parceltracking.add_package_from_image` schickt ein Bild an eine **AI-Task**-Entität von Home Assistant (verfügbar ab HA 2025.8). Das kann z. B. OpenAI, Google Gemini, Anthropic Claude oder Ollama mit einem Vision-Modell sein. Die KI liest die Sendungsnummern und, wenn erkennbar, den Paketdienst aus. Danach prüft die Integration jede Nummer mit der automatischen Erkennung. Bestell-, Kunden- und Telefonnummern fallen dabei weg.
+
+Voraussetzung: Eine KI-Integration mit Bildunterstützung ist eingerichtet. Ohne `ai_task_entity` wird die bevorzugte AI-Task-Entität verwendet (*Einstellungen → System → Allgemein → KI-Vorschläge*).
+
+Das Bild kann aus der Medienbibliothek stammen, wo du im Dienst-Dialog auch direkt Fotos hochladen kannst, oder ein Kamera-Schnappschuss sein:
+
+```yaml
+action: parceltracking.add_package_from_image
+data:
+  image:
+    media_content_id: media-source://media_source/local/paketlabel.jpg
+    media_content_type: image/jpeg
+  name: Bestellung Elektronik   # optional, bei mehreren Nummern durchnummeriert
+  add: true                      # false = nur erkennen, nicht hinzufügen
+response_variable: ergebnis
+```
+
+Kamera als Quelle, z. B. die Türkamera: `media_content_id: media-source://camera/camera.haustuer`.
+
+Die Antwort listet jede gefundene Nummer mit Paketdienst und Erkennungsart auf.
+
 ## Dienste
 
 ```yaml
 # Paket hinzufügen (ist es schon vorhanden, wird nur der Name aktualisiert)
 service: parceltracking.add_package
 data:
-  carrier: dhl          # amazon, dhl, dpd, gls, hermes, ups
   tracking_number: "00340434161094042557"
   name: Neue Kopfhörer
+  # carrier: dhl        # optional; ohne Angabe wird der Dienst erkannt
+
+# Paketdienst einer Nummer nur ermitteln
+service: parceltracking.detect_carrier
+data:
+  tracking_number: "1Z999AA10123456784"
+response_variable: erkennung
 
 # Paket entfernen
 service: parceltracking.remove_package

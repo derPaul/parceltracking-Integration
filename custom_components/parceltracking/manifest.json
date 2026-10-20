@@ -1,7 +1,9 @@
 {
   "domain": "parceltracking",
   "name": "Parcel Tracking",
-  "codeowners": ["@derpaul"],
+  "codeowners": [
+    "@derpaul"
+  ],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/derpaul/parceltracking-integration",
@@ -9,5 +11,8 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/derpaul/parceltracking-integration/issues",
   "requirements": [],
-  "version": "0.1.0"
+  "version": "0.2.0",
+  "after_dependencies": [
+    "ai_task"
+  ]
 }

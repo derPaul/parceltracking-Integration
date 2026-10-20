@@ -52,6 +52,8 @@ AMAZON_BUSINESS_IDS: Final = [
 DEFAULT_AMAZON_CARRIER_ID: Final = "AMZN_UK"
 
 SERVICE_ADD_PACKAGE: Final = "add_package"
+SERVICE_ADD_PACKAGE_FROM_IMAGE: Final = "add_package_from_image"
+SERVICE_DETECT_CARRIER: Final = "detect_carrier"
 SERVICE_REMOVE_PACKAGE: Final = "remove_package"
 SERVICE_REMOVE_DELIVERED: Final = "remove_delivered"
 

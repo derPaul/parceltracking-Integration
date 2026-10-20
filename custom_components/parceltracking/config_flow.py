@@ -28,6 +28,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .api import CarrierAuthError, CarrierError, create_client
+from .api.detect import detect_carriers
 from .const import (
     AMAZON_BUSINESS_IDS,
     AMAZON_REGIONS,
@@ -209,6 +210,9 @@ class ParcelTrackingConfigFlow(ConfigFlow, domain=DOMAIN):
 class ParcelTrackingOptionsFlow(OptionsFlow):
     """Manage packages and polling interval."""
 
+    # Number the user already confirmed despite the carrier mismatch warning.
+    _confirmed_number: str | None = None
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -230,13 +234,24 @@ class ParcelTrackingOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         """Add a package."""
         errors: dict[str, str] = {}
+        placeholders = {"detected": ""}
         if user_input is not None:
             number = normalize_tracking_number(user_input[CONF_TRACKING_NUMBER])
             packages = self._packages
+            detected = detect_carriers(number)
             if not number:
                 errors[CONF_TRACKING_NUMBER] = "invalid_tracking_number"
             elif any(p[CONF_TRACKING_NUMBER] == number for p in packages):
                 errors[CONF_TRACKING_NUMBER] = "already_tracked"
+            elif (
+                detected
+                and self.config_entry.data[CONF_CARRIER] not in detected
+                and number != self._confirmed_number
+            ):
+                # Warn once; submitting the same number again adds it anyway.
+                self._confirmed_number = number
+                errors[CONF_TRACKING_NUMBER] = "wrong_carrier"
+                placeholders["detected"] = ", ".join(CARRIER_NAMES[c] for c in detected)
             else:
                 packages.append(
                     {
@@ -247,13 +262,17 @@ class ParcelTrackingOptionsFlow(OptionsFlow):
                 return self._save(**{CONF_PACKAGES: packages})
         return self.async_show_form(
             step_id="add_package",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_TRACKING_NUMBER): _TEXT,
-                    vol.Optional(CONF_NAME): _TEXT,
-                }
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(
+                    {
+                        vol.Required(CONF_TRACKING_NUMBER): _TEXT,
+                        vol.Optional(CONF_NAME): _TEXT,
+                    }
+                ),
+                user_input,
             ),
             errors=errors,
+            description_placeholders=placeholders,
         )
 
     async def async_step_remove_package(

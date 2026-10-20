@@ -21,8 +21,20 @@
     }
   },
   "services": {
-    "add_package": { "service": "mdi:package-variant-plus" },
-    "remove_package": { "service": "mdi:package-variant-minus" },
-    "remove_delivered": { "service": "mdi:package-variant-closed-check" }
+    "add_package": {
+      "service": "mdi:package-variant-plus"
+    },
+    "remove_package": {
+      "service": "mdi:package-variant-minus"
+    },
+    "remove_delivered": {
+      "service": "mdi:package-variant-closed-check"
+    },
+    "add_package_from_image": {
+      "service": "mdi:barcode-scan"
+    },
+    "detect_carrier": {
+      "service": "mdi:magnify-scan"
+    }
   }
 }

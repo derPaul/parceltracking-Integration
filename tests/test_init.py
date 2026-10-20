@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import homeassistant.components.ai_task  # noqa: F401  (imported so it can be patched)
+import pytest
 from homeassistant.config_entries import SOURCE_USER, ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -172,3 +175,187 @@ async def test_options_flow_add_package(hass: HomeAssistant) -> None:
         {"tracking_number": "XYZ789", "name": "Schuhe"}
     ]
     assert hass.states.get("sensor.dhl_schuhe").state == "in_transit"
+
+
+DPD_CLIENT = "custom_components.parceltracking.api.dpd.DpdClient"
+HERMES_CLIENT = "custom_components.parceltracking.api.hermes.HermesClient"
+UPS_CLIENT = "custom_components.parceltracking.api.ups.UpsClient"
+
+
+def _carrier_entry(carrier: str, title: str) -> MockConfigEntry:
+    return MockConfigEntry(
+        domain=DOMAIN,
+        title=title,
+        unique_id=carrier,
+        data={"carrier": carrier},
+        options={"packages": [], "scan_interval": 30},
+    )
+
+
+async def _setup(hass: HomeAssistant, *entries: MockConfigEntry) -> None:
+    for entry in entries:
+        entry.add_to_hass(hass)
+        assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+
+async def test_add_package_detects_carrier_by_pattern(hass: HomeAssistant) -> None:
+    dhl, ups = _entry(), _carrier_entry("ups", "UPS")
+    with (
+        patch(f"{DHL_CLIENT}.async_track", side_effect=_track),
+        patch(f"{UPS_CLIENT}.async_track", side_effect=_track) as ups_track,
+    ):
+        await _setup(hass, dhl, ups)
+        response = await hass.services.async_call(
+            DOMAIN,
+            "add_package",
+            {"tracking_number": "1z999aa10123456784"},
+            blocking=True,
+            return_response=True,
+        )
+        await hass.async_block_till_done()
+    assert response == {
+        "tracking_number": "1Z999AA10123456784",
+        "carrier": "ups",
+        "detection": "pattern",
+    }
+    # Unambiguous formats need no probing.
+    assert ups_track.call_args_list[-1].args[0] == "1Z999AA10123456784"
+    assert ups.options["packages"][0]["tracking_number"] == "1Z999AA10123456784"
+    assert dhl.options["packages"] == []
+
+
+async def test_add_package_asks_apis_when_ambiguous(hass: HomeAssistant) -> None:
+    dpd, hermes = _carrier_entry("dpd", "DPD"), _carrier_entry("hermes", "Hermes")
+    with (
+        patch(f"{DPD_CLIENT}.async_track", side_effect=CarrierNotFoundError("x")),
+        patch(f"{HERMES_CLIENT}.async_track", side_effect=_track),
+    ):
+        await _setup(hass, dpd, hermes)
+        response = await hass.services.async_call(
+            DOMAIN,
+            "add_package",
+            {"tracking_number": "01234567890123"},
+            blocking=True,
+            return_response=True,
+        )
+        await hass.async_block_till_done()
+    assert response["carrier"] == "hermes"
+    assert response["detection"] == "api"
+    assert dpd.options["packages"] == []
+
+    # Nobody knows the number yet: fall back to the most likely carrier.
+    with (
+        patch(f"{DPD_CLIENT}.async_track", side_effect=CarrierNotFoundError("x")),
+        patch(f"{HERMES_CLIENT}.async_track", side_effect=CarrierNotFoundError("x")),
+    ):
+        response = await hass.services.async_call(
+            DOMAIN,
+            "detect_carrier",
+            {"tracking_number": "09999999999999"},
+            blocking=True,
+            return_response=True,
+        )
+    assert response == {
+        "tracking_number": "09999999999999",
+        "candidates": ["dpd", "hermes"],
+        "carrier": "dpd",
+        "detection": "guess",
+    }
+
+
+async def test_add_package_no_matching_carrier(hass: HomeAssistant) -> None:
+    with patch(f"{DHL_CLIENT}.async_track", side_effect=_track):
+        await _setup(hass, _entry())
+        with pytest.raises(ServiceValidationError):
+            await hass.services.async_call(
+                DOMAIN,
+                "add_package",
+                {"tracking_number": "1Z999AA10123456784"},
+                blocking=True,
+            )
+
+
+async def test_add_package_from_image(hass: HomeAssistant) -> None:
+    hass.config.components.add("ai_task")
+    dhl, ups = _entry(), _carrier_entry("ups", "UPS")
+    ai_result = MagicMock(
+        data={
+            "tracking_numbers": [
+                "1Z 999 AA1 0123 4567 84",
+                "302-1234567-1234567",  # order number, must be dropped
+                "00340434161094042557",
+            ],
+            "carrier": "unknown",
+        }
+    )
+    with (
+        patch(f"{DHL_CLIENT}.async_track", side_effect=_track),
+        patch(f"{UPS_CLIENT}.async_track", side_effect=_track),
+        patch(
+            "homeassistant.components.ai_task.async_generate_data",
+            AsyncMock(return_value=ai_result),
+        ) as generate,
+    ):
+        await _setup(hass, dhl, ups)
+        response = await hass.services.async_call(
+            DOMAIN,
+            "add_package_from_image",
+            {
+                "image": {
+                    "media_content_id": "media-source://media_source/local/label.jpg",
+                    "media_content_type": "image/jpeg",
+                },
+                "ai_task_entity": "ai_task.claude",
+                "name": "Bestellung",
+            },
+            blocking=True,
+            return_response=True,
+        )
+        await hass.async_block_till_done()
+
+    kwargs = generate.call_args.kwargs
+    assert kwargs["entity_id"] == "ai_task.claude"
+    assert kwargs["attachments"][0]["media_content_id"].endswith("label.jpg")
+    assert [(p["tracking_number"], p["carrier"]) for p in response["packages"]] == [
+        ("1Z999AA10123456784", "ups"),
+        ("00340434161094042557", "dhl"),
+    ]
+    assert ups.options["packages"] == [
+        {"tracking_number": "1Z999AA10123456784", "name": "Bestellung (1)"}
+    ]
+    assert dhl.options["packages"][0]["name"] == "Bestellung (2)"
+
+
+async def test_add_package_from_image_without_ai_task(hass: HomeAssistant) -> None:
+    with patch(f"{DHL_CLIENT}.async_track", side_effect=_track):
+        await _setup(hass, _entry())
+        with pytest.raises(ServiceValidationError):
+            await hass.services.async_call(
+                DOMAIN,
+                "add_package_from_image",
+                {"image": {"media_content_id": "media-source://x"}},
+                blocking=True,
+            )
+
+
+async def test_options_flow_warns_about_other_carrier(hass: HomeAssistant) -> None:
+    entry = _entry()
+    with patch(f"{DHL_CLIENT}.async_track", side_effect=_track):
+        await _setup(hass, entry)
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {"next_step_id": "add_package"}
+        )
+        user_input = {"tracking_number": "1Z999AA10123456784"}
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], user_input
+        )
+        assert result["errors"] == {"tracking_number": "wrong_carrier"}
+        assert result["description_placeholders"] == {"detected": "UPS"}
+        # Submitting the same number again adds it anyway.
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], user_input
+        )
+        await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY

@@ -98,7 +98,8 @@
     },
     "error": {
       "invalid_tracking_number": "Bitte gib eine Sendungsnummer ein.",
-      "already_tracked": "Dieses Paket wird bereits verfolgt."
+      "already_tracked": "Dieses Paket wird bereits verfolgt.",
+      "wrong_carrier": "Diese Nummer sieht nach {detected} aus. Erneut absenden, um sie trotzdem hinzuzufügen."
     }
   },
   "entity": {
@@ -173,7 +174,7 @@
       "fields": {
         "carrier": {
           "name": "Paketdienst",
-          "description": "Paketdienst des Pakets. Er muss vorher eingerichtet sein."
+          "description": "Paketdienst des Pakets. Leer lassen, um ihn anhand der Sendungsnummer zu erkennen."
         },
         "tracking_number": {
           "name": "Sendungsnummer",
@@ -182,6 +183,38 @@
         "name": {
           "name": "Name",
           "description": "Optionaler Anzeigename, z. B. der Inhalt."
+        }
+      }
+    },
+    "add_package_from_image": {
+      "name": "Pakete aus Bild hinzufügen",
+      "description": "Liest Sendungsnummern mit einer AI-Task-Entität aus einem Foto oder Screenshot, erkennt den Paketdienst und startet die Verfolgung.",
+      "fields": {
+        "image": {
+          "name": "Bild",
+          "description": "Foto eines Paketaufklebers, Screenshot einer Versandbestätigung oder Kamerabild."
+        },
+        "ai_task_entity": {
+          "name": "AI-Task-Entität",
+          "description": "AI-Task-Entität mit Bildunterstützung. Standard ist die bevorzugte AI-Task-Entität."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Optionaler Anzeigename, z. B. der Inhalt."
+        },
+        "add": {
+          "name": "Pakete hinzufügen",
+          "description": "Ausschalten, um die erkannten Nummern nur zurückzugeben."
+        }
+      }
+    },
+    "detect_carrier": {
+      "name": "Paketdienst erkennen",
+      "description": "Gibt zurück, zu welchem Paketdienst eine Sendungsnummer wahrscheinlich gehört.",
+      "fields": {
+        "tracking_number": {
+          "name": "Sendungsnummer",
+          "description": "Die Sendungsnummer des Pakets."
         }
       }
     },
@@ -216,6 +249,18 @@
     },
     "package_not_found": {
       "message": "Es wird kein Paket mit der Sendungsnummer {tracking_number} verfolgt."
+    },
+    "no_matching_carrier": {
+      "message": "Kein eingerichteter Paketdienst passt zur Sendungsnummer {tracking_number} (Format passt zu: {carriers})."
+    },
+    "no_tracking_number_in_image": {
+      "message": "Im Bild wurde keine Sendungsnummer gefunden."
+    },
+    "ai_task_unavailable": {
+      "message": "Die AI-Task-Integration ist nicht eingerichtet. Richte zuerst eine KI-Integration mit Bildunterstützung ein."
+    },
+    "image_analysis_failed": {
+      "message": "Das Bild konnte nicht ausgewertet werden: {error}"
     }
   }
 }
