@@ -139,6 +139,7 @@ automation:
 
 ```bash
 pip install -r requirements_test.txt
+python scripts/install_ha_test_deps.py
 pytest
 ```
 

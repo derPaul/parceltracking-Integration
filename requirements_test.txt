@@ -1,5 +1,1 @@
 pytest-homeassistant-custom-component
-# Needed to import ai_task/conversation in tests (always present in a real HA install)
-hassil
-home-assistant-intents
-PyTurboJPEG
