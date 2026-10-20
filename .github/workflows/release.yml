@@ -1,0 +1,24 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check manifest version matches tag
+        run: |
+          version=$(jq -r .version custom_components/parceltracking/manifest.json)
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "manifest.json has $version, tag is $GITHUB_REF_NAME"; exit 1; }
+      - name: Build zip
+        run: cd custom_components/parceltracking && zip -r ../../parceltracking.zip . -x '*__pycache__*'
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: parceltracking.zip
+          generate_release_notes: true

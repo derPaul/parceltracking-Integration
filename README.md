@@ -15,7 +15,7 @@ Eine Custom Integration für Home Assistant, die Pakete von **DHL, DPD, GLS, Her
 
 ### HACS (benutzerdefiniertes Repository)
 
-1. HACS → ⋮ → *Benutzerdefinierte Repositories* → `https://github.com/derpaul/parceltracking-integration`, Typ *Integration*.
+1. HACS → ⋮ → *Benutzerdefinierte Repositories* → `https://github.com/derPaul/parceltracking-Integration`, Typ *Integration*.
 2. „Parcel Tracking“ installieren und Home Assistant neu starten.
 
 ### Manuell

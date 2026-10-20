@@ -6,10 +6,10 @@
   ],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/derpaul/parceltracking-integration",
+  "documentation": "https://github.com/derPaul/parceltracking-Integration",
   "integration_type": "service",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/derpaul/parceltracking-integration/issues",
+  "issue_tracker": "https://github.com/derPaul/parceltracking-Integration/issues",
   "requirements": [],
   "version": "0.2.0",
   "after_dependencies": [
