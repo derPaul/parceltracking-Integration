@@ -151,7 +151,8 @@
   "selector": {
     "carrier": {
       "options": {
-        "amazon": "Amazon Shipping",
+        "amazon_logistics": "Amazon",
+        "amazon": "Amazon Shipping (Verkäufer)",
         "dhl": "DHL",
         "dpd": "DPD",
         "gls": "GLS",

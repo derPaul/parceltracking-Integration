@@ -1,6 +1,6 @@
 # Parcel Tracking für Home Assistant
 
-Eine Custom Integration für Home Assistant, die Pakete von **DHL, DPD, GLS, Hermes, UPS und Amazon Shipping** verfolgt. Dafür nutzt sie **deine eigenen API-Zugangsdaten** und keinen Drittanbieter wie AfterShip oder 17track.
+Eine Custom Integration für Home Assistant, die Pakete von **DHL, DPD, GLS, Hermes, UPS und Amazon** verfolgt. Dafür nutzt sie **deine eigenen API-Zugangsdaten** und keinen Drittanbieter wie AfterShip oder 17track.
 
 - Ein Sensor pro Paket. Der Zustand ist einheitlich für alle Paketdienste: `not_found`, `pre_transit`, `in_transit`, `out_for_delivery`, `ready_for_pickup`, `delivered`, `exception`, `returned` oder `unknown`.
 - Attribute: Statustext, Ort, letzte Aktualisierung, voraussichtliche Zustellung, die letzten 10 Ereignisse und ein Link zur Sendungsverfolgung.
@@ -37,11 +37,15 @@ Pakete verwaltest du über **Konfigurieren** an der Integration: *Paket hinzufü
 | **GLS** | API-Key | [gls-group.eu – API-Zugang registrieren](https://gls-group.eu/DE/en/register-api-access). Der Key wird als `x-api-key` an `api-tt.de.gls-group.com` geschickt. |
 | **DPD** | – | DPD bietet Privatkunden keine Tracking-API mit eigenem Token. Die Integration nutzt den Endpunkt von tracking.dpd.de ohne Zugangsdaten. |
 | **Hermes** | optional API-Key | Hermes vergibt offizielle API-Zugänge (HSI) nur an Geschäftskunden. Die Integration nutzt den Endpunkt von myhermes.de. Ein eingetragener Key wird als `x-api-key` mitgeschickt. |
-| **Amazon** | LWA-Client-ID, Client-Secret, Refresh-Token, Region, Business-ID, Carrier-ID | Selling Partner API mit der Rolle *Amazon Shipping*. Siehe den Hinweis unten. |
+| **Amazon** | – | Für Pakete, die Amazon selbst zustellt (Sendungsnummer `TBA…`). Nutzt ohne Zugangsdaten den Endpunkt der Sendungsverfolgung auf track.amazon.de. |
+| **Amazon Shipping (Verkäufer)** | LWA-Client-ID, Client-Secret, Refresh-Token, Region, Business-ID, Carrier-ID | Selling Partner API mit der Rolle *Amazon Shipping*. Siehe den Hinweis unten. |
 
 ### Hinweis zu Amazon
 
-Amazon hat **keine öffentliche Tracking-API für normale Amazon-Bestellungen**. Die Integration nutzt die *Amazon Shipping API v2* (`GET /shipping/v2/tracking`). Damit lassen sich nur Sendungen verfolgen, die über **Amazon Shipping** verschickt wurden, z. B. als Verkäufer. Dafür brauchst du eine registrierte SP-API-App. `business_id` (z. B. `AmazonShipping_UK`) und `carrier_id` (z. B. `AMZN_UK`) hängen vom Marktplatz ab.
+Amazon bietet für normale Bestellungen **keine Tracking-API mit eigenem Token** an. Deshalb gibt es zwei Einträge:
+
+- **Amazon:** Die richtige Wahl für deine Bestellungen. Damit verfolgst du Pakete, die Amazon selbst zustellt (`TBA…`). Wie bei DPD und Hermes wird der Endpunkt der öffentlichen Sendungsverfolgung auf track.amazon.de genutzt, ganz ohne Anmeldung. Er ist nicht offiziell dokumentiert und kann sich jederzeit ändern. Stellt DHL, Hermes oder ein anderer Paketdienst die Bestellung zu, findest du dessen Sendungsnummer in der Bestellung unter *Lieferung verfolgen*. Diese fügst du dann beim jeweiligen Paketdienst hinzu.
+- **Amazon Shipping (Verkäufer):** Nur für Sendungen, die über den Verkäuferdienst Amazon Shipping verschickt wurden. Nutzt die *Amazon Shipping API v2* und braucht eine registrierte SP-API-App. `business_id` (z. B. `AmazonShipping_UK`) und `carrier_id` (z. B. `AMZN_UK`) hängen vom Marktplatz ab, für Deutschland ist dort kein Marktplatz dokumentiert.
 
 ## Automatische Erkennung des Paketdienstes
 
@@ -149,4 +153,4 @@ Die API-Clients unter `custom_components/parceltracking/api/` hängen nicht von 
 
 ## Haftungsausschluss
 
-Kein offizielles Produkt der genannten Paketdienste. Die Endpunkte von DPD und Hermes sind nicht offiziell dokumentiert und können sich jederzeit ändern.
+Kein offizielles Produkt der genannten Paketdienste. Die Endpunkte von DPD, Hermes und Amazon (track.amazon.de) sind nicht offiziell dokumentiert und können sich jederzeit ändern.
