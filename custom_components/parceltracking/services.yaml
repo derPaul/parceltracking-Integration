@@ -1,0 +1,55 @@
+add_package:
+  fields:
+    carrier:
+      required: true
+      selector:
+        select:
+          translation_key: carrier
+          options:
+            - amazon
+            - dhl
+            - dpd
+            - gls
+            - hermes
+            - ups
+    tracking_number:
+      required: true
+      example: "00340434161094042557"
+      selector:
+        text:
+    name:
+      example: "Neue Kopfhörer"
+      selector:
+        text:
+
+remove_package:
+  fields:
+    tracking_number:
+      required: true
+      selector:
+        text:
+    carrier:
+      selector:
+        select:
+          translation_key: carrier
+          options:
+            - amazon
+            - dhl
+            - dpd
+            - gls
+            - hermes
+            - ups
+
+remove_delivered:
+  fields:
+    carrier:
+      selector:
+        select:
+          translation_key: carrier
+          options:
+            - amazon
+            - dhl
+            - dpd
+            - gls
+            - hermes
+            - ups

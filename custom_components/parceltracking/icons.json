@@ -1,0 +1,28 @@
+{
+  "entity": {
+    "sensor": {
+      "parcel": {
+        "default": "mdi:package-variant-closed",
+        "state": {
+          "not_found": "mdi:package-variant-closed-remove",
+          "pre_transit": "mdi:package-variant",
+          "in_transit": "mdi:truck-delivery",
+          "out_for_delivery": "mdi:truck-fast",
+          "ready_for_pickup": "mdi:store-marker",
+          "delivered": "mdi:package-variant-closed-check",
+          "exception": "mdi:alert-circle",
+          "returned": "mdi:keyboard-return",
+          "unknown": "mdi:help-circle"
+        }
+      },
+      "active_parcels": {
+        "default": "mdi:package-variant"
+      }
+    }
+  },
+  "services": {
+    "add_package": { "service": "mdi:package-variant-plus" },
+    "remove_package": { "service": "mdi:package-variant-minus" },
+    "remove_delivered": { "service": "mdi:package-variant-closed-check" }
+  }
+}
