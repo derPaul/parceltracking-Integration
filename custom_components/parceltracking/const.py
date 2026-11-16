@@ -21,6 +21,23 @@ CONF_SCAN_INTERVAL: Final = "scan_interval"
 
 DEFAULT_SCAN_INTERVAL: Final = 30  # minutes
 
+# Mailbox entries
+CONF_ENTRY_TYPE: Final = "entry_type"
+ENTRY_TYPE_MAILBOX: Final = "mailbox"
+CONF_FOLDERS: Final = "folders"
+CONF_CARRIERS: Final = "carriers"
+CONF_LOOKBACK_DAYS: Final = "lookback_days"
+CONF_KEEP_DELIVERED_DAYS: Final = "keep_delivered_days"
+DEFAULT_IMAP_PORT: Final = 993
+DEFAULT_FOLDERS: Final = "INBOX"
+DEFAULT_MAIL_SCAN_INTERVAL: Final = 15  # minutes
+DEFAULT_LOOKBACK_DAYS: Final = 14
+DEFAULT_KEEP_DELIVERED_DAYS: Final = 3
+# Carriers a mailbox can watch; "amazon" covers all Amazon order mails.
+MAIL_CARRIERS: Final = ["amazon", "dhl", "dpd", "gls", "hermes", "ups"]
+# Carriers whose live status needs no credentials.
+KEYLESS_CARRIERS: Final = ("dpd", "hermes", "amazon_logistics")
+
 CARRIER_NAMES: Final = {
     "amazon_logistics": "Amazon",
     "amazon": "Amazon Shipping (Verkäufer)",

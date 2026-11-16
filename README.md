@@ -1,6 +1,8 @@
 # Parcel Tracking für Home Assistant
 
-Eine Custom Integration für Home Assistant, die Pakete von **DHL, DPD, GLS, Hermes, UPS und Amazon** verfolgt. Dafür nutzt sie **deine eigenen API-Zugangsdaten** und keinen Drittanbieter wie AfterShip oder 17track.
+Eine Custom Integration für Home Assistant, die Pakete von **DHL, DPD, GLS, Hermes, UPS und Amazon** verfolgt. Sie **findet deine Pakete automatisch in deinen Versandmails** und holt den aktuellen Status direkt bei den Paketdiensten, ohne Drittanbieter wie AfterShip oder 17track.
+
+- **Postfächer scannen:** Versandmails von DHL, DPD, GLS, Hermes, UPS, Amazon und Shops werden ausgewertet. Mehrere Postfächer sind möglich, z. B. eines nur für Amazon.
 
 - Ein Sensor pro Paket. Der Zustand ist einheitlich für alle Paketdienste: `not_found`, `pre_transit`, `in_transit`, `out_for_delivery`, `ready_for_pickup`, `delivered`, `exception`, `returned` oder `unknown`.
 - Attribute: Statustext, Ort, letzte Aktualisierung, voraussichtliche Zustellung, die letzten 10 Ereignisse und ein Link zur Sendungsverfolgung.
@@ -24,7 +26,38 @@ Den Ordner `custom_components/parceltracking` nach `<config>/custom_components/`
 
 ## Einrichtung
 
-*Einstellungen → Geräte & Dienste → Integration hinzufügen → Parcel Tracking*. Wähle einen Paketdienst und gib seine Zugangsdaten ein. Für jeden weiteren Paketdienst fügst du die Integration erneut hinzu.
+*Einstellungen → Geräte & Dienste → Integration hinzufügen → Parcel Tracking*. Danach wählst du, was du hinzufügen willst:
+
+- **Postfach (Mails scannen):** der empfohlene Start. Siehe den nächsten Abschnitt.
+- **Paketdienst-Zugang (API):** API-Zugangsdaten eines Paketdienstes. Sie liefern den Live-Status für Pakete aus deinen Mails. Außerdem kannst du hier Pakete von Hand hinzufügen.
+
+Für jedes weitere Postfach und jeden weiteren Paketdienst fügst du die Integration erneut hinzu.
+
+## Postfächer
+
+Die Integration liest per IMAP die Mails der letzten 14 Tage. Danach schaut sie alle 15 Minuten nach neuen Mails. Mails werden nur gelesen, nichts wird verschoben, gelöscht oder als gelesen markiert. Von Mails, die nicht nach Versand aussehen, werden nur Absender und Betreff abgerufen.
+
+**Einrichten:** IMAP-Server (z. B. `imap.gmail.com`, `imap.gmx.net`, `imap.web.de`, `outlook.office365.com`), Benutzername, Passwort, Ordner und die Paketdienste, auf die das Postfach achten soll.
+
+- **Gmail und andere Anbieter mit Zwei-Faktor-Anmeldung** brauchen ein **App-Passwort** statt deines normalen Passworts. Bei Gmail: Google-Konto → *Sicherheit* → *App-Passwörter*. IMAP muss in den Gmail-Einstellungen aktiviert sein.
+- **Mehrere Postfächer:** Lege für jede Adresse einen eigenen Eintrag an. Nutzt du für Amazon eine eigene Adresse, wähle dort nur „Amazon“ als Paketdienst und beim anderen Postfach alle übrigen.
+- **Ordner:** durch Komma getrennt, z. B. `INBOX, Einkäufe`. Landen Versandmails bei Gmail in einem Label, trägst du den Labelnamen als Ordner ein.
+
+**Was gefunden wird:**
+
+| Quelle | Erkennung |
+|---|---|
+| Mails von DHL, DPD, GLS, Hermes, UPS | Sendungsnummer und Status aus Betreff und Text, z. B. „kommt heute“, „wurde zugestellt“ |
+| Versandmails von Shops | Links zur Sendungsverfolgung (auch hinter Klick-Weiterleitungen) und beschriftete Nummern wie „Sendungsnummer: …“. Der Shop-Name wird zum Paketnamen. |
+| Amazon | Ein Paket pro Bestellung mit dem Artikelnamen aus dem Betreff. Status aus „Bestellt“, „Versandt“, „Wird heute zugestellt“, „Zugestellt“. Steht eine DHL- oder andere Sendungsnummer in der Mail, kommt der Live-Status von diesem Paketdienst. |
+
+**Live-Status:** Für DPD, Hermes und Amazon-eigene Zustellungen (`TBA…`) fragt die Integration den Paketdienst ohne Zugangsdaten ab. Für DHL, GLS und UPS nur, wenn du dort unter *Paketdienst-Zugang* Zugangsdaten hinterlegt hast. Sonst gilt der Status aus der letzten Mail.
+
+**Sensoren pro Postfach:** ein Sensor pro Paket, „Aktive Pakete“ und „Pakete heute“ (Anzahl in Zustellung). Neue Pakete erscheinen ohne Neustart. Zugestellte Pakete verschwinden nach 3 Tagen, Pakete ohne Neuigkeiten nach 30 Tagen. Über *Konfigurieren* am Postfach änderst du Ordner, Paketdienste, Zeitraum und Intervall.
+
+Das Passwort speichert Home Assistant wie bei seiner eigenen IMAP-Integration in seiner Konfiguration.
+
+## Paketdienste von Hand
 
 Pakete verwaltest du über **Konfigurieren** an der Integration: *Paket hinzufügen*, *Pakete entfernen* oder *Einstellungen* (Abfrageintervall, Standard 30 Minuten).
 
@@ -98,7 +131,7 @@ data:
   tracking_number: "1Z999AA10123456784"
 response_variable: erkennung
 
-# Paket entfernen
+# Paket entfernen (auch eines aus einem Postfach; spätere Mails dazu werden ignoriert)
 service: parceltracking.remove_package
 data:
   tracking_number: "00340434161094042557"

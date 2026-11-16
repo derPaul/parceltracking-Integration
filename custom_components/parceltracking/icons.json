@@ -17,6 +17,9 @@
       },
       "active_parcels": {
         "default": "mdi:package-variant"
+      },
+      "parcels_today": {
+        "default": "mdi:truck-fast"
       }
     }
   },
