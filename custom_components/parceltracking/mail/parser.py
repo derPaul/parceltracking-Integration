@@ -96,6 +96,21 @@ LABELED_NUMBER = re.compile(
 AMAZON_ORDER = re.compile(r"\b(\d{3}-\d{7}-\d{7})\b")
 QUOTED_NAME = re.compile(r"[„\"“»](.+?)[“\"”«]")
 
+# Sender of a parcel as carriers put it into their subjects.
+SUBJECT_SHOP = [
+    re.compile(
+        r"\b(?:Ihre|Deine|Ihr|Dein) (?:Sendung|Paket|Lieferung) von (.+?)"
+        r"(?: (?:kommt|ist|wurde|wird)\b|$)",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\b(?:Ihre|Deine) (.+?) (?:Sendung|Lieferung)\b", re.IGNORECASE),
+]
+# "Coolblue GmbH" -> "Coolblue", "Miele & Cie. KG Zentraler Versand" -> "Miele"
+LEGAL_FORM = re.compile(
+    r"\s+(?:&\s*(?:Co|Cie)\.?\s*)?(?:GmbH|AG|KG|SE|UG|e\.\s?K\.|Inc|Ltd)\b.*$"
+)
+CARRIER_WORDS = {"dhl", "dhl paket", "dpd", "gls", "hermes", "ups", "neue"}
+
 CARRIER_MENTIONS = {
     "dhl": re.compile(r"\bDHL\b|Deutsche Post", re.IGNORECASE),
     "dpd": re.compile(r"\bDPD\b", re.IGNORECASE),
@@ -173,9 +188,11 @@ def _decode(value: str | None) -> str:
     if not value:
         return ""
     try:
-        return str(make_header(decode_header(value)))
+        text = str(make_header(decode_header(value)))
     except (ValueError, LookupError, UnicodeError):
-        return value
+        text = value
+    # Long headers are folded over several lines.
+    return " ".join(text.split())
 
 
 def sender_of(msg: Message) -> tuple[str, str]:
@@ -288,6 +305,15 @@ def find_tracking_numbers(
     return result
 
 
+def _shop_in_subject(subject: str) -> str | None:
+    for pattern in SUBJECT_SHOP:
+        if match := pattern.search(subject):
+            name = LEGAL_FORM.sub("", match.group(1)).strip(" ,-")
+            if name and name.lower() not in CARRIER_WORDS:
+                return name
+    return None
+
+
 def parse_mail(msg: Message) -> list[MailParcel]:
     """Return the parcels a mail is about."""
     subject = _decode(msg.get("Subject")).strip()
@@ -312,8 +338,9 @@ def parse_mail(msg: Message) -> list[MailParcel]:
     if sender == "amazon":
         return _parse_amazon(subject, text, numbers, status, date)
 
-    # A shop's name is a better label than the tracking number.
-    name = display_name if display_name and not sender else None
+    # A shop's name is a better label than the tracking number. In carrier
+    # mails it is in the subject: "Ihre Coolblue GmbH Sendung ist unterwegs".
+    name = display_name if display_name and not sender else _shop_in_subject(subject)
     return [
         MailParcel(
             key=number,

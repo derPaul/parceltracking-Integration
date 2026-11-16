@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from email.message import EmailMessage
+from email.utils import format_datetime
 from unittest.mock import patch
 
 from homeassistant.config_entries import SOURCE_USER, ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.parceltracking.api import ParcelStatus, TrackingResult
@@ -284,3 +287,32 @@ async def test_mailbox_auth_failure_starts_reauth(hass: HomeAssistant) -> None:
         if f["context"]["source"] == "reauth"
     ]
     assert flow["step_id"] == "reauth_mailbox"
+
+
+async def test_old_out_for_delivery_counts_as_delivered(hass: HomeAssistant) -> None:
+    now = dt_util.now()
+    stale = _mail(
+        "DHL <noreply@dhl.de>",
+        "Ihre Hanse Haus GmbH Sendung kommt heute",
+        "Sendungsnummer: 00340434465863744643",
+    )
+    stale.replace_header("Date", format_datetime(now - timedelta(days=1)))
+    fresh = _mail(
+        "DHL <noreply@dhl.de>",
+        "Ihre Amazon Sendung kommt heute",
+        "Sendungsnummer: JJD000390016524712800",
+    )
+    fresh.replace_header("Date", format_datetime(now))
+    entry = _entry()
+    entry.add_to_hass(hass)
+    with patch(f"{IMAP}.fetch_new", return_value=[stale, fresh]):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    # Yesterday's "kommt heute" without newer news: assumed delivered.
+    old = _state(hass, entry, "00340434465863744643")
+    assert old.state == "delivered"
+    assert old.attributes["status_text"].startswith("Vermutlich zugestellt")
+    assert old.name.endswith("Hanse Haus")
+    assert _state(hass, entry, "JJD000390016524712800").state == "out_for_delivery"
+    assert _summary(hass, entry, "parcels_today") == "1"

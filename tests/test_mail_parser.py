@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import email
+import email.policy
 from email.message import EmailMessage
 
 import pytest
@@ -155,3 +157,40 @@ def test_newsletter_yields_nothing() -> None:
 )
 def test_status_from_text(text: str, expected: ParcelStatus | None) -> None:
     assert status_from_text(text) is expected
+
+
+@pytest.mark.parametrize(
+    ("subject", "name"),
+    [
+        ("Ihre Coolblue GmbH Sendung ist unterwegs", "Coolblue"),
+        ("Ihre Hanse Haus GmbH Sendung kommt heute", "Hanse Haus"),
+        ("Ihre Amazon Sendung kommt heute", "Amazon"),
+        (
+            "Ihre Miele & Cie. KG Zentraler Versand Sendung wurde im Briefkasten",
+            "Miele",
+        ),
+        ("Ihr Paket von Zalando kommt heute", "Zalando"),
+        ("Ihre DHL Sendung kommt heute", None),
+    ],
+)
+def test_carrier_mail_names_shop_from_subject(subject: str, name: str | None) -> None:
+    msg = _mail("DHL <noreply@dhl.de>", subject, "Sendungsnummer: 00340434465863744643")
+    [parcel] = parse_mail(msg)
+    assert parcel.name == name
+    assert "\r" not in parcel.status_text and "  " not in parcel.status_text
+
+
+def test_folded_subject_is_joined() -> None:
+    raw = (
+        b"From: DHL <noreply@dhl.de>\r\n"
+        b"Subject: Ihre Miele & Cie. KG Zentraler Versand Sendung wurde im Briefkasten\r\n"
+        b" zugestellt\r\n"
+        b"Date: Mon, 16 Nov 2026 13:24:40 +0100\r\n\r\n"
+        b"Sendungsnummer: 573719167174\r\n"
+    )
+    [parcel] = parse_mail(email.message_from_bytes(raw, policy=email.policy.compat32))
+    assert parcel.status_text == (
+        "Ihre Miele & Cie. KG Zentraler Versand Sendung wurde im Briefkasten zugestellt"
+    )
+    assert parcel.status is ParcelStatus.DELIVERED
+    assert parcel.name == "Miele"
