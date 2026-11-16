@@ -47,6 +47,7 @@ from .const import (
     CONF_LOOKBACK_DAYS,
     CONF_NAME,
     CONF_PACKAGES,
+    CONF_PROVIDER,
     CONF_REFRESH_TOKEN,
     CONF_REGION,
     CONF_SCAN_INTERVAL,
@@ -71,6 +72,7 @@ from .mail.imap import (
     MailboxError,
     MailboxFolderError,
 )
+from .mail.providers import AUTO, CUSTOM, PROVIDERS, provider_for
 from .mailbox import parse_folders
 
 _LOGGER = logging.getLogger(__name__)
@@ -172,12 +174,23 @@ async def _async_validate_mailbox(
     return {}
 
 
+def _with_login_hint(errors: dict[str, str], provider: str) -> dict[str, str]:
+    """Replace a rejected login with what this provider usually needs."""
+    hint = PROVIDERS[provider].login_hint if provider in PROVIDERS else "generic"
+    if errors.get("base") == "invalid_auth" and hint != "generic":
+        return {"base": f"invalid_auth_{hint}"}
+    return errors
+
+
 class ParcelTrackingConfigFlow(ConfigFlow, domain=DOMAIN):
     """Set up mailboxes and carrier credentials."""
 
     VERSION = 1
 
     _carrier: str
+    _mailbox_input: dict[str, Any]
+    _mailbox_data: dict[str, Any]
+    _mailbox_options: dict[str, Any]
 
     @staticmethod
     @callback
@@ -194,37 +207,34 @@ class ParcelTrackingConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_mailbox(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Set up an IMAP mailbox to scan for shipping mails."""
+        """Set up an IMAP mailbox: provider, address and password."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            data = {
-                CONF_ENTRY_TYPE: ENTRY_TYPE_MAILBOX,
-                CONF_HOST: user_input[CONF_HOST].strip(),
-                CONF_PORT: int(user_input[CONF_PORT]),
-                CONF_USERNAME: user_input[CONF_USERNAME].strip(),
-                CONF_PASSWORD: user_input[CONF_PASSWORD],
-            }
-            await self.async_set_unique_id(
-                f"mailbox_{data[CONF_USERNAME].lower()}@{data[CONF_HOST].lower()}"
-            )
-            self._abort_if_unique_id_configured()
-            options = {
-                CONF_FOLDERS: user_input[CONF_FOLDERS],
-                CONF_CARRIERS: user_input[CONF_CARRIERS],
-                CONF_LOOKBACK_DAYS: DEFAULT_LOOKBACK_DAYS,
-                CONF_KEEP_DELIVERED_DAYS: DEFAULT_KEEP_DELIVERED_DAYS,
-                CONF_SCAN_INTERVAL: DEFAULT_MAIL_SCAN_INTERVAL,
-            }
-            errors = await _async_validate_mailbox(self.hass, data, options)
-            if not errors:
-                return self.async_create_entry(
-                    title=data[CONF_USERNAME], data=data, options=options
+            address = user_input[CONF_USERNAME].strip()
+            provider = user_input[CONF_PROVIDER]
+            if provider == AUTO:
+                provider = provider_for(address) or CUSTOM
+            self._mailbox_input = {**user_input, CONF_USERNAME: address}
+            # Only servers entered by hand may use a login without "@".
+            if "@" not in address and user_input[CONF_PROVIDER] != CUSTOM:
+                errors[CONF_USERNAME] = "invalid_email"
+            elif provider == CUSTOM:
+                return await self.async_step_mailbox_server()
+            else:
+                server = PROVIDERS[provider]
+                errors = await self._async_check_mailbox(
+                    provider, server.host, server.port
                 )
+                if not errors:
+                    return self._create_mailbox_entry()
         schema = vol.Schema(
             {
-                vol.Required(CONF_HOST): _TEXT,
-                vol.Required(CONF_PORT, default=DEFAULT_IMAP_PORT): NumberSelector(
-                    NumberSelectorConfig(min=1, max=65535, mode=NumberSelectorMode.BOX)
+                vol.Required(CONF_PROVIDER, default=AUTO): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[AUTO, *PROVIDERS, CUSTOM],
+                        mode=SelectSelectorMode.DROPDOWN,
+                        translation_key="mail_provider",
+                    )
                 ),
                 vol.Required(CONF_USERNAME): _TEXT,
                 vol.Required(CONF_PASSWORD): _SECRET,
@@ -236,6 +246,67 @@ class ParcelTrackingConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="mailbox",
             data_schema=self.add_suggested_values_to_schema(schema, user_input),
             errors=errors,
+        )
+
+    async def async_step_mailbox_server(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask for the IMAP server of a provider not in the list."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            errors = await self._async_check_mailbox(
+                CUSTOM, user_input[CONF_HOST].strip(), int(user_input[CONF_PORT])
+            )
+            if not errors:
+                return self._create_mailbox_entry()
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_HOST): _TEXT,
+                vol.Required(CONF_PORT, default=DEFAULT_IMAP_PORT): NumberSelector(
+                    NumberSelectorConfig(min=1, max=65535, mode=NumberSelectorMode.BOX)
+                ),
+            }
+        )
+        return self.async_show_form(
+            step_id="mailbox_server",
+            data_schema=self.add_suggested_values_to_schema(schema, user_input),
+            errors=errors,
+        )
+
+    async def _async_check_mailbox(
+        self, provider: str, host: str, port: int
+    ) -> dict[str, str]:
+        """Check the login; return form errors, none when it works."""
+        user_input = self._mailbox_input
+        data = {
+            CONF_ENTRY_TYPE: ENTRY_TYPE_MAILBOX,
+            CONF_PROVIDER: provider,
+            CONF_HOST: host,
+            CONF_PORT: port,
+            CONF_USERNAME: user_input[CONF_USERNAME],
+            CONF_PASSWORD: user_input[CONF_PASSWORD],
+        }
+        await self.async_set_unique_id(
+            f"mailbox_{data[CONF_USERNAME].lower()}@{host.lower()}"
+        )
+        self._abort_if_unique_id_configured()
+        options = {
+            CONF_FOLDERS: user_input[CONF_FOLDERS],
+            CONF_CARRIERS: user_input[CONF_CARRIERS],
+            CONF_LOOKBACK_DAYS: DEFAULT_LOOKBACK_DAYS,
+            CONF_KEEP_DELIVERED_DAYS: DEFAULT_KEEP_DELIVERED_DAYS,
+            CONF_SCAN_INTERVAL: DEFAULT_MAIL_SCAN_INTERVAL,
+        }
+        self._mailbox_data, self._mailbox_options = data, options
+        return _with_login_hint(
+            await _async_validate_mailbox(self.hass, data, options), provider
+        )
+
+    def _create_mailbox_entry(self) -> ConfigFlowResult:
+        return self.async_create_entry(
+            title=self._mailbox_data[CONF_USERNAME],
+            data=self._mailbox_data,
+            options=self._mailbox_options,
         )
 
     async def async_step_carrier(
@@ -312,7 +383,10 @@ class ParcelTrackingConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             data = {**entry.data, CONF_PASSWORD: user_input[CONF_PASSWORD]}
-            errors = await _async_validate_mailbox(self.hass, data, entry.options)
+            errors = _with_login_hint(
+                await _async_validate_mailbox(self.hass, data, entry.options),
+                entry.data.get(CONF_PROVIDER, CUSTOM),
+            )
             if not errors:
                 return self.async_update_reload_and_abort(
                     entry, data_updates={CONF_PASSWORD: user_input[CONF_PASSWORD]}

@@ -17,6 +17,7 @@ from custom_components.parceltracking.mail.imap import (
     encode_folder,
 )
 from custom_components.parceltracking.mail.parser import is_relevant
+from custom_components.parceltracking.mail.providers import provider_for
 
 SHIPPING = (
     b"From: DHL <noreply@dhl.de>\r\nSubject: Ihre Sendung kommt heute\r\n"
@@ -135,3 +136,19 @@ def test_errors() -> None:
 )
 def test_encode_folder(name: str, encoded: str) -> None:
     assert encode_folder(name) == encoded
+
+
+@pytest.mark.parametrize(
+    ("address", "provider"),
+    [
+        ("Ich@GMAIL.com", "gmail"),
+        ("ich@web.de", "webde"),
+        ("ich@gmx.net", "gmx"),
+        ("ich@hotmail.de", "outlook"),
+        ("ich@t-online.de", "tonline"),
+        ("ich@icloud.com", "icloud"),
+        ("ich@meinedomain.example", None),
+    ],
+)
+def test_provider_for(address: str, provider: str | None) -> None:
+    assert provider_for(address) == provider
