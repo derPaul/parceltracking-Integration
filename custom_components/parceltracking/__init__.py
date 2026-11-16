@@ -1,4 +1,4 @@
-"""Parcel tracking for DHL, DPD, GLS, Hermes, UPS and Amazon."""
+"""Parcel tracking from shipping mails, with live status from DHL, DPD, GLS, Hermes, UPS and Amazon."""
 
 from __future__ import annotations
 
@@ -10,8 +10,9 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 
 from .api import create_client
-from .const import CONF_CARRIER, DOMAIN
+from .const import CONF_CARRIER, CONF_ENTRY_TYPE, DOMAIN, ENTRY_TYPE_MAILBOX
 from .coordinator import ParcelTrackingConfigEntry, ParcelTrackingCoordinator
+from .mailbox import MailboxCoordinator
 from .services import async_setup_services
 
 PLATFORMS = [Platform.SENSOR]
@@ -28,7 +29,15 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_setup_entry(
     hass: HomeAssistant, entry: ParcelTrackingConfigEntry
 ) -> bool:
-    """Set up one carrier from a config entry."""
+    """Set up a mailbox or a carrier from a config entry."""
+    if entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_MAILBOX:
+        mailbox = MailboxCoordinator(hass, entry)
+        await mailbox.async_config_entry_first_refresh()
+        entry.runtime_data = mailbox
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+        return True
+
     client = create_client(
         entry.data[CONF_CARRIER], async_get_clientsession(hass), entry.data
     )

@@ -22,10 +22,12 @@ from .api.detect import detect_carriers
 from .const import (
     CARRIER_NAMES,
     CONF_CARRIER,
+    CONF_ENTRY_TYPE,
     CONF_NAME,
     CONF_PACKAGES,
     CONF_TRACKING_NUMBER,
     DOMAIN,
+    ENTRY_TYPE_MAILBOX,
     SERVICE_ADD_PACKAGE,
     SERVICE_ADD_PACKAGE_FROM_IMAGE,
     SERVICE_DETECT_CARRIER,
@@ -35,6 +37,7 @@ from .const import (
 )
 from .coordinator import ParcelTrackingConfigEntry
 from .image import async_extract_tracking_numbers
+from .mailbox import MailboxCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,7 +81,17 @@ def _entries(
         entry
         for entry in hass.config_entries.async_entries(DOMAIN)
         if entry.state is ConfigEntryState.LOADED
+        and CONF_CARRIER in entry.data
         and (carrier is None or entry.data[CONF_CARRIER] == carrier)
+    ]
+
+
+def _mailboxes(hass: HomeAssistant) -> list[MailboxCoordinator]:
+    return [
+        entry.runtime_data
+        for entry in hass.config_entries.async_entries(DOMAIN)
+        if entry.state is ConfigEntryState.LOADED
+        and entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_MAILBOX
     ]
 
 
@@ -226,6 +239,9 @@ def async_setup_services(hass: HomeAssistant) -> None:
             if len(remaining) != len(packages):
                 found = True
                 _set_packages(hass, entry, remaining)
+        if not call.data.get(CONF_CARRIER):
+            for mailbox in _mailboxes(hass):
+                found = await mailbox.async_remove(number) or found
         if not found:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
@@ -245,6 +261,9 @@ def async_setup_services(hass: HomeAssistant) -> None:
             ]
             if len(remaining) != len(packages):
                 _set_packages(hass, entry, remaining)
+        if not call.data.get(CONF_CARRIER):
+            for mailbox in _mailboxes(hass):
+                await mailbox.async_remove_delivered()
 
     hass.services.async_register(
         DOMAIN,

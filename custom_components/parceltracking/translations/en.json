@@ -2,10 +2,44 @@
   "config": {
     "step": {
       "user": {
+        "title": "Add",
+        "description": "Scan a mailbox for shipping mails, or add API credentials of a carrier for live status.",
+        "menu_options": {
+          "mailbox": "Mailbox (scan e-mails)",
+          "carrier": "Carrier credentials (API)"
+        }
+      },
+      "carrier": {
         "title": "Choose carrier",
         "description": "Each carrier is added separately with its own API credentials.",
         "data": {
           "carrier": "Carrier"
+        }
+      },
+      "mailbox": {
+        "title": "Mailbox",
+        "description": "Parcels are found in shipping mails from DHL, DPD, GLS, Hermes, UPS, Amazon and shops. Add one entry per mailbox, e.g. a separate one for Amazon.",
+        "data": {
+          "host": "IMAP server",
+          "port": "Port",
+          "username": "Username",
+          "password": "Password",
+          "folders": "Folders",
+          "carriers": "Carriers"
+        },
+        "data_description": {
+          "host": "e.g. imap.gmail.com, imap.gmx.net, imap.web.de, outlook.office365.com",
+          "username": "Usually your e-mail address.",
+          "password": "Gmail and others with two-factor login need an app password.",
+          "folders": "Comma separated, e.g. INBOX, Shopping.",
+          "carriers": "Only mails about these carriers are evaluated. Amazon covers all Amazon order mails, also when DHL delivers."
+        }
+      },
+      "reauth_mailbox": {
+        "title": "Mailbox login",
+        "description": "The mail server rejected the login for {username}. Please enter the password again.",
+        "data": {
+          "password": "Password"
         }
       },
       "credentials": {
@@ -52,7 +86,9 @@
     "error": {
       "invalid_auth": "The credentials were rejected by the carrier.",
       "cannot_connect": "Could not reach the carrier API.",
-      "unknown": "Unexpected error."
+      "unknown": "Unexpected error.",
+      "folder_not_found": "This folder does not exist in the mailbox.",
+      "no_carriers": "Select at least one carrier."
     },
     "abort": {
       "already_configured": "This carrier is already set up.",
@@ -94,9 +130,31 @@
         "data_description": {
           "scan_interval": "Minutes between updates. Mind your API quota (DHL: 250 requests/day by default)."
         }
+      },
+      "mailbox_settings": {
+        "title": "Mailbox settings",
+        "data": {
+          "folders": "Folders",
+          "carriers": "Carriers",
+          "lookback_days": "Look back",
+          "keep_delivered_days": "Keep delivered parcels",
+          "scan_interval": "Update interval"
+        },
+        "data_description": {
+          "folders": "Comma separated, e.g. INBOX, Shopping.",
+          "carriers": "Only mails about these carriers are evaluated. Amazon covers all Amazon order mails, also when DHL delivers.",
+          "lookback_days": "How many days of mail are scanned.",
+          "keep_delivered_days": "Days a delivered parcel stays visible.",
+          "scan_interval": "Minutes between mailbox scans."
+        }
       }
     },
     "error": {
+      "folder_not_found": "This folder does not exist in the mailbox.",
+      "no_carriers": "Select at least one carrier.",
+      "invalid_auth": "The credentials were rejected by the carrier.",
+      "cannot_connect": "Could not reach the carrier API.",
+      "unknown": "Unexpected error.",
       "invalid_tracking_number": "Please enter a tracking number.",
       "already_tracked": "This package is already tracked.",
       "wrong_carrier": "This number looks like {detected}. Submit again to add it anyway."
@@ -140,11 +198,26 @@
           },
           "events": {
             "name": "Events"
+          },
+          "order_id": {
+            "name": "Order number"
+          },
+          "mail_subject": {
+            "name": "Mail subject"
+          },
+          "mail_date": {
+            "name": "Mail date"
+          },
+          "live_status": {
+            "name": "Live status from carrier"
           }
         }
       },
       "active_parcels": {
         "name": "Active parcels"
+      },
+      "parcels_today": {
+        "name": "Parcels today"
       }
     }
   },
@@ -165,6 +238,16 @@
         "eu": "Europe",
         "na": "North America",
         "fe": "Far East"
+      }
+    },
+    "mail_carrier": {
+      "options": {
+        "dhl": "DHL",
+        "dpd": "DPD",
+        "gls": "GLS",
+        "hermes": "Hermes",
+        "ups": "UPS",
+        "amazon": "Amazon"
       }
     }
   },
@@ -221,7 +304,7 @@
     },
     "remove_package": {
       "name": "Remove packages",
-      "description": "Stop tracking a package.",
+      "description": "Stop tracking a package, also one found in a mailbox.",
       "fields": {
         "tracking_number": {
           "name": "Tracking number",

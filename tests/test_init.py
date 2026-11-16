@@ -48,6 +48,10 @@ async def test_config_flow_dhl(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
     )
+    assert result["type"] is FlowResultType.MENU
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "carrier"}
+    )
     assert result["type"] is FlowResultType.FORM
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {"carrier": "dhl"}
@@ -76,6 +80,10 @@ async def test_config_flow_dpd_without_credentials(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
     )
+    assert result["type"] is FlowResultType.MENU
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "carrier"}
+    )
     with patch("custom_components.parceltracking.async_setup_entry", return_value=True):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {"carrier": "dpd"}
@@ -87,6 +95,10 @@ async def test_config_flow_dpd_without_credentials(hass: HomeAssistant) -> None:
 async def test_config_flow_amazon_without_credentials(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
+    )
+    assert result["type"] is FlowResultType.MENU
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "carrier"}
     )
     with patch("custom_components.parceltracking.async_setup_entry", return_value=True):
         result = await hass.config_entries.flow.async_configure(

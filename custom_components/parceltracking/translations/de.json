@@ -2,10 +2,44 @@
   "config": {
     "step": {
       "user": {
+        "title": "Hinzufügen",
+        "description": "Ein Postfach nach Versandmails durchsuchen oder API-Zugangsdaten eines Paketdienstes für den Live-Status hinterlegen.",
+        "menu_options": {
+          "mailbox": "Postfach (Mails scannen)",
+          "carrier": "Paketdienst-Zugang (API)"
+        }
+      },
+      "carrier": {
         "title": "Paketdienst wählen",
         "description": "Jeder Paketdienst wird einzeln mit eigenen API-Zugangsdaten hinzugefügt.",
         "data": {
           "carrier": "Paketdienst"
+        }
+      },
+      "mailbox": {
+        "title": "Postfach",
+        "description": "Pakete werden in Versandmails von DHL, DPD, GLS, Hermes, UPS, Amazon und Shops gefunden. Lege pro Postfach einen Eintrag an, z. B. einen eigenen für Amazon.",
+        "data": {
+          "host": "IMAP-Server",
+          "port": "Port",
+          "username": "Benutzername",
+          "password": "Passwort",
+          "folders": "Ordner",
+          "carriers": "Paketdienste"
+        },
+        "data_description": {
+          "host": "z. B. imap.gmail.com, imap.gmx.net, imap.web.de, outlook.office365.com",
+          "username": "Meist deine E-Mail-Adresse.",
+          "password": "Gmail und andere Anbieter mit Zwei-Faktor-Anmeldung brauchen ein App-Passwort.",
+          "folders": "Durch Komma getrennt, z. B. INBOX, Einkäufe.",
+          "carriers": "Nur Mails zu diesen Paketdiensten werden ausgewertet. Amazon umfasst alle Mails zu Amazon-Bestellungen, auch wenn DHL zustellt."
+        }
+      },
+      "reauth_mailbox": {
+        "title": "Anmeldung am Postfach",
+        "description": "Der Mailserver hat die Anmeldung für {username} abgelehnt. Bitte gib das Passwort erneut ein.",
+        "data": {
+          "password": "Passwort"
         }
       },
       "credentials": {
@@ -52,7 +86,9 @@
     "error": {
       "invalid_auth": "Die Zugangsdaten wurden vom Paketdienst abgelehnt.",
       "cannot_connect": "Die API des Paketdienstes ist nicht erreichbar.",
-      "unknown": "Unerwarteter Fehler."
+      "unknown": "Unerwarteter Fehler.",
+      "folder_not_found": "Diesen Ordner gibt es im Postfach nicht.",
+      "no_carriers": "Wähle mindestens einen Paketdienst."
     },
     "abort": {
       "already_configured": "Dieser Paketdienst ist bereits eingerichtet.",
@@ -94,9 +130,31 @@
         "data_description": {
           "scan_interval": "Minuten zwischen den Abfragen. Achte auf dein API-Kontingent (DHL: standardmäßig 250 Anfragen/Tag)."
         }
+      },
+      "mailbox_settings": {
+        "title": "Postfach-Einstellungen",
+        "data": {
+          "folders": "Ordner",
+          "carriers": "Paketdienste",
+          "lookback_days": "Zeitraum",
+          "keep_delivered_days": "Zugestellte Pakete behalten",
+          "scan_interval": "Aktualisierungsintervall"
+        },
+        "data_description": {
+          "folders": "Durch Komma getrennt, z. B. INBOX, Einkäufe.",
+          "carriers": "Nur Mails zu diesen Paketdiensten werden ausgewertet. Amazon umfasst alle Mails zu Amazon-Bestellungen, auch wenn DHL zustellt.",
+          "lookback_days": "Wie viele Tage zurück Mails ausgewertet werden.",
+          "keep_delivered_days": "So viele Tage bleibt ein zugestelltes Paket sichtbar.",
+          "scan_interval": "Minuten zwischen zwei Postfach-Abfragen."
+        }
       }
     },
     "error": {
+      "folder_not_found": "Diesen Ordner gibt es im Postfach nicht.",
+      "no_carriers": "Wähle mindestens einen Paketdienst.",
+      "invalid_auth": "Die Zugangsdaten wurden vom Paketdienst abgelehnt.",
+      "cannot_connect": "Die API des Paketdienstes ist nicht erreichbar.",
+      "unknown": "Unerwarteter Fehler.",
       "invalid_tracking_number": "Bitte gib eine Sendungsnummer ein.",
       "already_tracked": "Dieses Paket wird bereits verfolgt.",
       "wrong_carrier": "Diese Nummer sieht nach {detected} aus. Erneut absenden, um sie trotzdem hinzuzufügen."
@@ -140,11 +198,26 @@
           },
           "events": {
             "name": "Ereignisse"
+          },
+          "order_id": {
+            "name": "Bestellnummer"
+          },
+          "mail_subject": {
+            "name": "Betreff der Mail"
+          },
+          "mail_date": {
+            "name": "Datum der Mail"
+          },
+          "live_status": {
+            "name": "Live-Status vom Paketdienst"
           }
         }
       },
       "active_parcels": {
         "name": "Aktive Pakete"
+      },
+      "parcels_today": {
+        "name": "Pakete heute"
       }
     }
   },
@@ -165,6 +238,16 @@
         "eu": "Europa",
         "na": "Nordamerika",
         "fe": "Fernost"
+      }
+    },
+    "mail_carrier": {
+      "options": {
+        "dhl": "DHL",
+        "dpd": "DPD",
+        "gls": "GLS",
+        "hermes": "Hermes",
+        "ups": "UPS",
+        "amazon": "Amazon"
       }
     }
   },
@@ -221,7 +304,7 @@
     },
     "remove_package": {
       "name": "Pakete entfernen",
-      "description": "Beendet die Verfolgung eines Pakets.",
+      "description": "Beendet die Verfolgung eines Pakets, auch eines aus einem Postfach.",
       "fields": {
         "tracking_number": {
           "name": "Sendungsnummer",
