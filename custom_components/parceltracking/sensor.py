@@ -245,13 +245,23 @@ class MailParcelSensor(MailboxEntity, SensorEntity):
         super().__init__(coordinator)
         self.key = key
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_mail_{key}"
-        view = coordinator.data[key]
+        self._last_name = self._name_of(coordinator.data[key])
+
+    @staticmethod
+    def _name_of(view: MailParcelView) -> str:
         carrier = MAIL_CARRIER_NAMES.get(view.carrier, view.carrier)
-        self._attr_name = view.name or (
+        return view.name or (
             f"{carrier} {view.tracking_number}"
             if view.tracking_number
             else f"Amazon {view.order_id}"
         )
+
+    @property
+    def name(self) -> str:
+        """Follow the name when a later mail reveals the shop."""
+        if view := self._view:
+            self._last_name = self._name_of(view)
+        return self._last_name
 
     @property
     def _view(self) -> MailParcelView | None:

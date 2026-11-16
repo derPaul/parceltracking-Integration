@@ -216,7 +216,21 @@ class MailboxCoordinator(DataUpdateCoordinator[dict[str, MailParcelView]]):
 
     def _cleanup(self) -> None:
         now = dt_util.utcnow()
+        today = dt_util.now().date()
         for key, record in list(self.packages.items()):
+            # "Kommt heute" from an earlier day and nobody who can tell us
+            # more: the parcel was delivered, the carrier just sent no mail.
+            if (
+                record["status"] == ParcelStatus.OUT_FOR_DELIVERY
+                and not record.get("delivered_at")
+                and dt_util.as_local(_parse(record["updated"])).date() < today
+                and not (
+                    record.get("tracking_number")
+                    and self._client_for(record["carrier"])
+                )
+            ):
+                record["delivered_at"] = record["updated"]
+                record["assumed_delivered"] = True
             delivered = record.get("delivered_at")
             if (delivered and now - _parse(delivered) > self._keep_delivered) or (
                 now - _parse(record["updated"]) > timedelta(days=STALE_DAYS)
@@ -289,6 +303,9 @@ class MailboxCoordinator(DataUpdateCoordinator[dict[str, MailParcelView]]):
                     else ParcelStatus(record["status"])
                 )
                 text = live.status_text if live else record.get("subject")
+                if record.get("assumed_delivered"):
+                    day = dt_util.as_local(_parse(record["updated"])).strftime("%d.%m.")
+                    text = f"Vermutlich zugestellt (Zustellung war für den {day} angekündigt)"
             views[key] = MailParcelView(
                 key=key,
                 carrier=record["carrier"],
