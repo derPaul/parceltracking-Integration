@@ -19,8 +19,7 @@ IMAP = "custom_components.parceltracking.mail.imap.MailboxClient"
 DPD_CLIENT = "custom_components.parceltracking.api.dpd.DpdClient"
 
 MAILBOX_INPUT = {
-    "host": "imap.example.com",
-    "port": 993,
+    "provider": "auto",
     "username": "ich@example.com",
     "password": "geheim",
     "folders": "INBOX",
@@ -106,7 +105,7 @@ async def _dpd_track(number: str) -> TrackingResult:
     )
 
 
-async def test_config_flow_mailbox(hass: HomeAssistant) -> None:
+async def _start_mailbox_flow(hass: HomeAssistant) -> dict:
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
     )
@@ -114,10 +113,51 @@ async def test_config_flow_mailbox(hass: HomeAssistant) -> None:
         result["flow_id"], {"next_step_id": "mailbox"}
     )
     assert result["step_id"] == "mailbox"
+    return result
+
+
+async def test_config_flow_mailbox_detects_provider(hass: HomeAssistant) -> None:
+    result = await _start_mailbox_flow(hass)
+    user_input = {**MAILBOX_INPUT, "username": " ich@gmail.com "}
 
     with patch(f"{IMAP}.test", side_effect=MailboxAuthError("nope")):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], MAILBOX_INPUT
+            result["flow_id"], user_input
+        )
+    # Gmail rejects normal passwords: say that an app password is needed.
+    assert result["errors"] == {"base": "invalid_auth_app_password"}
+
+    with (
+        patch(f"{IMAP}.test"),
+        patch("custom_components.parceltracking.async_setup_entry", return_value=True),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input
+        )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == "ich@gmail.com"
+    assert result["data"] == {
+        "entry_type": "mailbox",
+        "provider": "gmail",
+        "host": "imap.gmail.com",
+        "port": 993,
+        "username": "ich@gmail.com",
+        "password": "geheim",
+    }
+    assert result["options"]["carriers"] == MAILBOX_INPUT["carriers"]
+
+
+async def test_config_flow_mailbox_custom_server(hass: HomeAssistant) -> None:
+    result = await _start_mailbox_flow(hass)
+    # Unknown domain with "automatic": ask for the server.
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**MAILBOX_INPUT, "username": "ich@meinedomain.example"}
+    )
+    assert result["step_id"] == "mailbox_server"
+
+    with patch(f"{IMAP}.test", side_effect=MailboxAuthError("nope")):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"host": "mail.meinedomain.example", "port": 993}
         )
     assert result["errors"] == {"base": "invalid_auth"}
 
@@ -126,13 +166,32 @@ async def test_config_flow_mailbox(hass: HomeAssistant) -> None:
         patch("custom_components.parceltracking.async_setup_entry", return_value=True),
     ):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], MAILBOX_INPUT
+            result["flow_id"], {"host": "mail.meinedomain.example", "port": 143}
         )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["title"] == "ich@example.com"
-    assert result["data"]["entry_type"] == "mailbox"
-    assert "folders" not in result["data"]
-    assert result["options"]["carriers"] == MAILBOX_INPUT["carriers"]
+    assert result["data"]["provider"] == "custom"
+    assert (result["data"]["host"], result["data"]["port"]) == (
+        "mail.meinedomain.example",
+        143,
+    )
+
+
+async def test_config_flow_mailbox_chosen_provider_and_bad_address(
+    hass: HomeAssistant,
+) -> None:
+    result = await _start_mailbox_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**MAILBOX_INPUT, "username": "ich"}
+    )
+    assert result["errors"] == {"username": "invalid_email"}
+
+    # WEB.DE chosen explicitly; a rejected login points to the IMAP switch.
+    with patch(f"{IMAP}.test", side_effect=MailboxAuthError("nope")):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {**MAILBOX_INPUT, "provider": "webde", "username": "ich@web.de"},
+        )
+    assert result["errors"] == {"base": "invalid_auth_enable_imap"}
 
 
 async def test_mailbox_finds_parcels_and_live_status(hass: HomeAssistant) -> None:

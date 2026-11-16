@@ -37,9 +37,19 @@ Für jedes weitere Postfach und jeden weiteren Paketdienst fügst du die Integra
 
 Die Integration liest per IMAP die Mails der letzten 14 Tage. Danach schaut sie alle 15 Minuten nach neuen Mails. Mails werden nur gelesen, nichts wird verschoben, gelöscht oder als gelesen markiert. Von Mails, die nicht nach Versand aussehen, werden nur Absender und Betreff abgerufen.
 
-**Einrichten:** IMAP-Server (z. B. `imap.gmail.com`, `imap.gmx.net`, `imap.web.de`, `outlook.office365.com`), Benutzername, Passwort, Ordner und die Paketdienste, auf die das Postfach achten soll.
+**Einrichten:** Wähle deinen Mail-Anbieter aus der Liste oder lass ihn mit „Automatisch“ anhand der Adresse erkennen. Dann gibst du E-Mail-Adresse und Passwort ein, außerdem Ordner und die Paketdienste, auf die das Postfach achten soll. Bei „Anderer Anbieter“ trägst du den IMAP-Server selbst ein.
 
-- **Gmail und andere Anbieter mit Zwei-Faktor-Anmeldung** brauchen ein **App-Passwort** statt deines normalen Passworts. Bei Gmail: Google-Konto → *Sicherheit* → *App-Passwörter*. IMAP muss in den Gmail-Einstellungen aktiviert sein.
+| Anbieter | Was du vorher brauchst |
+|---|---|
+| Gmail | **App-Passwort** (Google-Konto → *Sicherheit* → *App-Passwörter*). IMAP muss in den Gmail-Einstellungen aktiviert sein. |
+| WEB.DE, GMX | IMAP im Postfach freischalten: *Einstellungen* → *POP3/IMAP Abruf*. |
+| T-Online | Ein eigenes **E-Mail-Passwort**, das du im Kundencenter festlegst. |
+| iCloud, Yahoo | **App-Passwort** aus den Sicherheitseinstellungen des Kontos. |
+| Outlook.com, Hotmail | Microsoft erlaubt für diese Postfächer keine Anmeldung per Passwort über IMAP mehr. Sie funktionieren derzeit nicht. |
+| IONOS, Posteo, mailbox.org, freenet | Normales Passwort. |
+
+Lehnt der Server die Anmeldung ab, zeigt der Dialog den passenden Hinweis für deinen Anbieter.
+
 - **Mehrere Postfächer:** Lege für jede Adresse einen eigenen Eintrag an. Nutzt du für Amazon eine eigene Adresse, wähle dort nur „Amazon“ als Paketdienst und beim anderen Postfach alle übrigen.
 - **Ordner:** durch Komma getrennt, z. B. `INBOX, Einkäufe`. Landen Versandmails bei Gmail in einem Label, trägst du den Labelnamen als Ordner ein.
 

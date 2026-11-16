@@ -18,21 +18,30 @@
       },
       "mailbox": {
         "title": "Postfach",
-        "description": "Pakete werden in Versandmails von DHL, DPD, GLS, Hermes, UPS, Amazon und Shops gefunden. Lege pro Postfach einen Eintrag an, z. B. einen eigenen für Amazon.",
+        "description": "Pakete werden in Versandmails von DHL, DPD, GLS, Hermes, UPS, Amazon und Shops gefunden. Lege pro Postfach einen Eintrag an, z. B. einen eigenen für Amazon.\n\nGmail, iCloud und Yahoo brauchen ein App-Passwort. Bei WEB.DE und GMX muss IMAP in den Postfach-Einstellungen freigeschaltet sein.",
         "data": {
-          "host": "IMAP-Server",
-          "port": "Port",
-          "username": "Benutzername",
+          "provider": "Mail-Anbieter",
+          "username": "E-Mail-Adresse",
           "password": "Passwort",
           "folders": "Ordner",
           "carriers": "Paketdienste"
         },
         "data_description": {
-          "host": "z. B. imap.gmail.com, imap.gmx.net, imap.web.de, outlook.office365.com",
-          "username": "Meist deine E-Mail-Adresse.",
+          "provider": "Automatisch erkennt den Anbieter an der Adresse. Wähle „Anderer Anbieter“, um den IMAP-Server selbst einzutragen.",
           "password": "Gmail und andere Anbieter mit Zwei-Faktor-Anmeldung brauchen ein App-Passwort.",
           "folders": "Durch Komma getrennt, z. B. INBOX, Einkäufe.",
           "carriers": "Nur Mails zu diesen Paketdiensten werden ausgewertet. Amazon umfasst alle Mails zu Amazon-Bestellungen, auch wenn DHL zustellt."
+        }
+      },
+      "mailbox_server": {
+        "title": "IMAP-Server",
+        "description": "Gib den IMAP-Server deines Mail-Anbieters ein. Du findest ihn meist in dessen Hilfe unter dem Stichwort IMAP.",
+        "data": {
+          "host": "IMAP-Server",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "z. B. imap.gmail.com, imap.gmx.net, imap.web.de, outlook.office365.com"
         }
       },
       "reauth_mailbox": {
@@ -88,7 +97,12 @@
       "cannot_connect": "Die API des Paketdienstes ist nicht erreichbar.",
       "unknown": "Unerwarteter Fehler.",
       "folder_not_found": "Diesen Ordner gibt es im Postfach nicht.",
-      "no_carriers": "Wähle mindestens einen Paketdienst."
+      "no_carriers": "Wähle mindestens einen Paketdienst.",
+      "invalid_email": "Bitte gib deine vollständige E-Mail-Adresse ein.",
+      "invalid_auth_app_password": "Anmeldung abgelehnt. Dieser Anbieter braucht statt deines normalen Passworts ein App-Passwort. Du erstellst es in den Sicherheitseinstellungen deines Kontos. Bei Gmail muss außerdem IMAP in den Gmail-Einstellungen aktiviert sein.",
+      "invalid_auth_enable_imap": "Anmeldung abgelehnt. Schalte zuerst in den Einstellungen deines Postfachs den Zugriff per IMAP frei (Einstellungen → POP3/IMAP Abruf) und prüfe dann das Passwort.",
+      "invalid_auth_mail_password": "Anmeldung abgelehnt. T-Online braucht ein eigenes E-Mail-Passwort, das du im Kundencenter festlegst.",
+      "invalid_auth_microsoft": "Anmeldung abgelehnt. Microsoft lässt bei Outlook.com und Hotmail keine Anmeldung per Passwort über IMAP mehr zu. Diese Postfächer können derzeit nicht genutzt werden."
     },
     "abort": {
       "already_configured": "Dieser Paketdienst ist bereits eingerichtet.",
@@ -238,6 +252,23 @@
         "eu": "Europa",
         "na": "Nordamerika",
         "fe": "Fernost"
+      }
+    },
+    "mail_provider": {
+      "options": {
+        "auto": "Automatisch (anhand der Adresse)",
+        "gmail": "Gmail",
+        "outlook": "Outlook.com / Hotmail",
+        "webde": "WEB.DE",
+        "gmx": "GMX",
+        "tonline": "T-Online",
+        "icloud": "iCloud",
+        "yahoo": "Yahoo",
+        "ionos": "IONOS",
+        "posteo": "Posteo",
+        "mailbox_org": "mailbox.org",
+        "freenet": "freenet",
+        "custom": "Anderer Anbieter"
       }
     },
     "mail_carrier": {

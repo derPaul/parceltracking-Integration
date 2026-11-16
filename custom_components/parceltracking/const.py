@@ -25,6 +25,7 @@ DEFAULT_SCAN_INTERVAL: Final = 30  # minutes
 CONF_ENTRY_TYPE: Final = "entry_type"
 ENTRY_TYPE_MAILBOX: Final = "mailbox"
 CONF_FOLDERS: Final = "folders"
+CONF_PROVIDER: Final = "provider"
 CONF_CARRIERS: Final = "carriers"
 CONF_LOOKBACK_DAYS: Final = "lookback_days"
 CONF_KEEP_DELIVERED_DAYS: Final = "keep_delivered_days"

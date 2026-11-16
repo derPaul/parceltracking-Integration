@@ -18,21 +18,30 @@
       },
       "mailbox": {
         "title": "Mailbox",
-        "description": "Parcels are found in shipping mails from DHL, DPD, GLS, Hermes, UPS, Amazon and shops. Add one entry per mailbox, e.g. a separate one for Amazon.",
+        "description": "Parcels are found in shipping mails from DHL, DPD, GLS, Hermes, UPS, Amazon and shops. Add one entry per mailbox, e.g. a separate one for Amazon.\n\nGmail, iCloud and Yahoo need an app password. WEB.DE and GMX need IMAP enabled in the mailbox settings.",
         "data": {
-          "host": "IMAP server",
-          "port": "Port",
-          "username": "Username",
+          "provider": "Mail provider",
+          "username": "E-mail address",
           "password": "Password",
           "folders": "Folders",
           "carriers": "Carriers"
         },
         "data_description": {
-          "host": "e.g. imap.gmail.com, imap.gmx.net, imap.web.de, outlook.office365.com",
-          "username": "Usually your e-mail address.",
+          "provider": "Automatic picks the provider from the address. Choose \"Other provider\" to enter the IMAP server yourself.",
           "password": "Gmail and others with two-factor login need an app password.",
           "folders": "Comma separated, e.g. INBOX, Shopping.",
           "carriers": "Only mails about these carriers are evaluated. Amazon covers all Amazon order mails, also when DHL delivers."
+        }
+      },
+      "mailbox_server": {
+        "title": "IMAP server",
+        "description": "Enter the IMAP server of your mail provider. You usually find it in its help pages under IMAP.",
+        "data": {
+          "host": "IMAP server",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "e.g. imap.gmail.com, imap.gmx.net, imap.web.de, outlook.office365.com"
         }
       },
       "reauth_mailbox": {
@@ -88,7 +97,12 @@
       "cannot_connect": "Could not reach the carrier API.",
       "unknown": "Unexpected error.",
       "folder_not_found": "This folder does not exist in the mailbox.",
-      "no_carriers": "Select at least one carrier."
+      "no_carriers": "Select at least one carrier.",
+      "invalid_email": "Please enter your full e-mail address.",
+      "invalid_auth_app_password": "Login rejected. This provider needs an app password instead of your normal password: create one in your account's security settings (for Gmail also enable IMAP in the Gmail settings).",
+      "invalid_auth_enable_imap": "Login rejected. Enable access via IMAP in your mailbox settings first (Settings → POP3/IMAP), then check the password.",
+      "invalid_auth_mail_password": "Login rejected. T-Online needs a separate e-mail password, which you set in the customer center.",
+      "invalid_auth_microsoft": "Login rejected. Microsoft no longer allows password logins via IMAP for Outlook.com and Hotmail; these mailboxes cannot be used at the moment."
     },
     "abort": {
       "already_configured": "This carrier is already set up.",
@@ -238,6 +252,23 @@
         "eu": "Europe",
         "na": "North America",
         "fe": "Far East"
+      }
+    },
+    "mail_provider": {
+      "options": {
+        "auto": "Automatic (from the address)",
+        "gmail": "Gmail",
+        "outlook": "Outlook.com / Hotmail",
+        "webde": "WEB.DE",
+        "gmx": "GMX",
+        "tonline": "T-Online",
+        "icloud": "iCloud",
+        "yahoo": "Yahoo",
+        "ionos": "IONOS",
+        "posteo": "Posteo",
+        "mailbox_org": "mailbox.org",
+        "freenet": "freenet",
+        "custom": "Other provider"
       }
     },
     "mail_carrier": {
