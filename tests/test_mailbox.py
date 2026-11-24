@@ -7,6 +7,8 @@ from email.message import EmailMessage
 from email.utils import format_datetime
 from unittest.mock import patch
 
+import pytest
+from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import SOURCE_USER, ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -16,6 +18,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.parceltracking.api import (
     CarrierApiError,
+    CarrierNotFoundError,
     ParcelStatus,
     TrackingResult,
 )
@@ -23,6 +26,17 @@ from custom_components.parceltracking.const import DOMAIN
 from custom_components.parceltracking.mail.imap import MailboxAuthError
 
 IMAP = "custom_components.parceltracking.mail.imap.MailboxClient"
+COORDINATOR = "custom_components.parceltracking.mailbox"
+
+
+@pytest.fixture(autouse=True)
+def daytime(freezer: FrozenDateTimeFactory) -> FrozenDateTimeFactory:
+    """Carriers are not asked at night; run the tests at midday local time."""
+    freezer.move_to(dt_util.now().replace(hour=12, minute=0, second=0, microsecond=0))
+    return freezer
+
+
+DHL_CLIENT = "custom_components.parceltracking.api.dhl.DhlClient"
 DPD_CLIENT = "custom_components.parceltracking.api.dpd.DpdClient"
 
 MAILBOX_INPUT = {
@@ -360,3 +374,121 @@ async def test_old_out_for_delivery_without_working_live_status(
     # Live query works and knows better: its status wins.
     assert _state(hass, entry, "01234567890123").state == "in_transit"
     assert _summary(hass, entry, "parcels_today") == "0"
+
+
+async def _dpd_mail(number: str, subject: str = "Deine Bestellung wurde versandt"):
+    return _mail(
+        "Shop <info@shop.example>",
+        subject,
+        f"https://tracking.dpd.de/status/de_DE/parcel/{number}",
+    )
+
+
+async def test_live_queries_follow_the_parcel_status(
+    hass: HomeAssistant, daytime: FrozenDateTimeFactory
+) -> None:
+    """Out for delivery: every update. In transit: hourly. Night: never."""
+    mails = [await _dpd_mail("01234567890123"), await _dpd_mail("09999999999999")]
+
+    async def track(number: str) -> TrackingResult:
+        status = (
+            ParcelStatus.OUT_FOR_DELIVERY
+            if number == "01234567890123"
+            else ParcelStatus.IN_TRANSIT
+        )
+        return TrackingResult(number, status, "…")
+
+    entry = _entry()
+    entry.add_to_hass(hass)
+    with (
+        patch(f"{IMAP}.fetch_new", return_value=mails),
+        patch(f"{DPD_CLIENT}.async_track", side_effect=track) as dpd,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        assert sorted(c.args[0] for c in dpd.call_args_list) == [
+            "01234567890123",
+            "09999999999999",
+        ]
+
+        async def update(minutes: int) -> list[str]:
+            dpd.reset_mock()
+            daytime.tick(timedelta(minutes=minutes))
+            await entry.runtime_data.async_refresh()
+            return [c.args[0] for c in dpd.call_args_list]
+
+        # 15 minutes later only the parcel out for delivery is asked again.
+        assert await update(15) == ["01234567890123"]
+        assert await update(15) == ["01234567890123"]
+        # After an hour the one in transit is due as well.
+        assert sorted(await update(30)) == ["01234567890123", "09999999999999"]
+        # At night nobody is asked.
+        daytime.move_to(dt_util.now().replace(hour=23))
+        assert await update(15) == []
+
+
+async def test_daily_budget_limits_dhl_queries(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
+) -> None:
+    numbers = ["00340434161094042557", "00340434161094042558", "00340434161094042559"]
+    mails = [
+        _mail(
+            "DHL <noreply@dhl.de>", "Ihre Sendung kommt heute", f"Sendungsnummer: {n}"
+        )
+        for n in numbers
+    ]
+    dhl = MockConfigEntry(
+        domain=DOMAIN,
+        title="DHL",
+        unique_id="dhl",
+        data={"carrier": "dhl", "api_key": "x"},
+        options={"packages": [], "scan_interval": 30},
+    )
+    dhl.add_to_hass(hass)
+
+    async def track(number: str) -> TrackingResult:
+        return TrackingResult(number, ParcelStatus.OUT_FOR_DELIVERY, "In Zustellung")
+
+    entry = _entry()
+    entry.add_to_hass(hass)
+    with (
+        patch(f"{COORDINATOR}.DAILY_LIVE_LIMITS", {"dhl": 2}),
+        patch(f"{IMAP}.fetch_new", return_value=mails),
+        patch(f"{DHL_CLIENT}.async_track", side_effect=track) as dhl_track,
+    ):
+        # Setting up one entry sets up the whole integration, mailbox included.
+        assert await hass.config_entries.async_setup(dhl.entry_id)
+        await hass.async_block_till_done()
+        # The mailbox may come up before the DHL entry; the next update asks DHL.
+        await entry.runtime_data.async_refresh()
+        await hass.async_block_till_done()
+    assert dhl_track.call_count == 2
+    assert "Daily limit of 2 live queries to dhl reached" in caplog.text
+    # The third parcel shows the mail status meanwhile.
+    states = [_state(hass, entry, n).attributes["live_status"] for n in numbers]
+    assert sorted(states) == [False, True, True]
+
+
+async def test_unknown_parcel_on_its_way_is_logged_once(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
+) -> None:
+    mails = [
+        await _dpd_mail(
+            "01105033079302", "Ihre Sendung befindet sich im Zustellfahrzeug"
+        ),
+        await _dpd_mail(
+            "01234567890123", "Ihre Sendung befindet sich im Zustellfahrzeug"
+        ),
+    ]
+    entry = _entry()
+    entry.add_to_hass(hass)
+    with (
+        patch(f"{IMAP}.fetch_new", return_value=mails),
+        patch(f"{DPD_CLIENT}.async_track", side_effect=CarrierNotFoundError("x")),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    notes = [r for r in caplog.records if "does not know" in r.getMessage()]
+    # Both parcels are noted, but only the first as a warning.
+    assert [r.levelname for r in notes] == ["WARNING", "DEBUG"]
+    assert "dpd" in notes[0].getMessage()
