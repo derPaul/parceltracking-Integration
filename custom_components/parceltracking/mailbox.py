@@ -129,6 +129,7 @@ class MailboxCoordinator(DataUpdateCoordinator[dict[str, MailParcelView]]):
         self._folders: dict[str, FolderState] = {}
         self._live: dict[str, TrackingResult] = {}
         self._keyless_clients: dict[str, CarrierClient] = {}
+        self._live_failed: set[str] = set()
 
     async def _async_setup(self) -> None:
         """Restore parcels found by earlier scans."""
@@ -143,8 +144,9 @@ class MailboxCoordinator(DataUpdateCoordinator[dict[str, MailParcelView]]):
     async def _async_update_data(self) -> dict[str, MailParcelView]:
         """Scan for new mails, then refresh the live status."""
         await self._async_scan()
-        self._cleanup()
         await self._async_update_live()
+        self._assume_delivered()
+        self._cleanup()
         await self._store.async_save(self._serialize())
         return self._views()
 
@@ -214,23 +216,26 @@ class MailboxCoordinator(DataUpdateCoordinator[dict[str, MailParcelView]]):
             if parcel.status is ParcelStatus.DELIVERED:
                 record["delivered_at"] = record.get("delivered_at") or date
 
-    def _cleanup(self) -> None:
-        now = dt_util.utcnow()
+    def _assume_delivered(self) -> None:
+        """Retire "kommt heute" from an earlier day that nobody updated.
+
+        The carrier just sent no delivery mail. A live status, when the
+        carrier gives one, still wins; a failing live query does not count.
+        """
         today = dt_util.now().date()
-        for key, record in list(self.packages.items()):
-            # "Kommt heute" from an earlier day and nobody who can tell us
-            # more: the parcel was delivered, the carrier just sent no mail.
+        for key, record in self.packages.items():
             if (
                 record["status"] == ParcelStatus.OUT_FOR_DELIVERY
                 and not record.get("delivered_at")
+                and key not in self._live
                 and dt_util.as_local(_parse(record["updated"])).date() < today
-                and not (
-                    record.get("tracking_number")
-                    and self._client_for(record["carrier"])
-                )
             ):
                 record["delivered_at"] = record["updated"]
                 record["assumed_delivered"] = True
+
+    def _cleanup(self) -> None:
+        now = dt_util.utcnow()
+        for key, record in list(self.packages.items()):
             delivered = record.get("delivered_at")
             if (delivered and now - _parse(delivered) > self._keep_delivered) or (
                 now - _parse(record["updated"]) > timedelta(days=STALE_DAYS)
@@ -276,7 +281,19 @@ class MailboxCoordinator(DataUpdateCoordinator[dict[str, MailParcelView]]):
             except CarrierNotFoundError:
                 continue
             except CarrierError as err:
-                _LOGGER.debug("Live status for %s failed: %s", number, err)
+                # Say it once per carrier; it usually fails for every parcel.
+                log = (
+                    _LOGGER.debug
+                    if record["carrier"] in self._live_failed
+                    else _LOGGER.warning
+                )
+                self._live_failed.add(record["carrier"])
+                log(
+                    "Live status from %s for %s failed: %s",
+                    record["carrier"],
+                    number,
+                    err,
+                )
                 continue
             if result.status in (ParcelStatus.NOT_FOUND, ParcelStatus.UNKNOWN):
                 continue

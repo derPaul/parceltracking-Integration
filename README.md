@@ -63,7 +63,7 @@ Lehnt der Server die Anmeldung ab, zeigt der Dialog den passenden Hinweis für d
 
 **Live-Status:** Für DPD, Hermes und Amazon-eigene Zustellungen (`TBA…`) fragt die Integration den Paketdienst ohne Zugangsdaten ab. Für DHL, GLS und UPS nur, wenn du dort unter *Paketdienst-Zugang* Zugangsdaten hinterlegt hast. Sonst gilt der Status aus der letzten Mail.
 
-**„Kommt heute“ ohne Zustell-Mail:** Viele Paketdienste schicken nach „kommt heute“ keine Mail mehr, wenn das Paket da ist. Gibt es für so ein Paket keinen Live-Status, gilt es ab dem nächsten Tag als zugestellt (Statustext „Vermutlich zugestellt“). Mit einem DHL-Zugang kommt der echte Status von DHL.
+**„Kommt heute“ ohne Zustell-Mail:** Viele Paketdienste schicken nach „kommt heute“ keine Mail mehr, wenn das Paket da ist. Gibt es für so ein Paket keinen Live-Status (auch wenn die Abfrage beim Paketdienst fehlschlägt), gilt es ab dem nächsten Tag als zugestellt (Statustext „Vermutlich zugestellt“). Mit einem DHL-Zugang kommt der echte Status von DHL.
 
 **Sensoren pro Postfach:** ein Sensor pro Paket, „Aktive Pakete“ und „Pakete heute“ (Anzahl in Zustellung). Neue Pakete erscheinen ohne Neustart. Zugestellte Pakete verschwinden nach 3 Tagen, Pakete ohne Neuigkeiten nach 30 Tagen. Über *Konfigurieren* am Postfach änderst du Ordner, Paketdienste, Zeitraum und Intervall.
 
