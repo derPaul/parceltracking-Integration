@@ -14,7 +14,11 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.parceltracking.api import ParcelStatus, TrackingResult
+from custom_components.parceltracking.api import (
+    CarrierApiError,
+    ParcelStatus,
+    TrackingResult,
+)
 from custom_components.parceltracking.const import DOMAIN
 from custom_components.parceltracking.mail.imap import MailboxAuthError
 
@@ -30,13 +34,12 @@ MAILBOX_INPUT = {
 }
 
 
-def _mail(
-    sender: str, subject: str, text: str, date: str = "16 Nov 2026 10:00"
-) -> EmailMessage:
+def _mail(sender: str, subject: str, text: str, minutes_ago: int = 60) -> EmailMessage:
+    # Relative to now: delivered parcels are cleaned up after a few days.
     msg = EmailMessage()
     msg["From"] = sender
     msg["Subject"] = subject
-    msg["Date"] = f"Mon, {date}:00 +0100"
+    msg["Date"] = format_datetime(dt_util.now() - timedelta(minutes=minutes_ago))
     msg.set_content(text)
     return msg
 
@@ -60,7 +63,7 @@ AMAZON_DELIVERED = _mail(
     "Amazon.de <shipment-tracking@amazon.de>",
     "Zugestellt: Ihr Amazon.de-Paket",
     "Bestellung 302-1234567-1234567 wurde zugestellt.",
-    date="16 Nov 2026 15:00",
+    minutes_ago=0,
 )
 
 
@@ -316,3 +319,44 @@ async def test_old_out_for_delivery_counts_as_delivered(hass: HomeAssistant) -> 
     assert old.name.endswith("Hanse Haus")
     assert _state(hass, entry, "JJD000390016524712800").state == "out_for_delivery"
     assert _summary(hass, entry, "parcels_today") == "1"
+
+
+async def test_old_out_for_delivery_without_working_live_status(
+    hass: HomeAssistant,
+) -> None:
+    """DPD has a keyless live query; when it fails, the old mail still retires."""
+    yesterday = format_datetime(dt_util.now() - timedelta(days=1))
+    stale = _mail(
+        "DPD <noreply@dpd.de>",
+        "Ihre Sendung befindet sich im Zustellfahrzeug",
+        "https://tracking.dpd.de/status/de_DE/parcel/01105033079302",
+    )
+    stale.replace_header("Date", yesterday)
+    other = _mail(
+        "DPD <noreply@dpd.de>",
+        "Ihre Sendung befindet sich im Zustellfahrzeug",
+        "https://tracking.dpd.de/status/de_DE/parcel/01234567890123",
+    )
+    other.replace_header("Date", yesterday)
+
+    async def track(number: str) -> TrackingResult:
+        if number == "01105033079302":
+            raise CarrierApiError("HTTP 500")
+        return TrackingResult(number, ParcelStatus.IN_TRANSIT, "Im Depot")
+
+    entry = _entry()
+    entry.add_to_hass(hass)
+    with (
+        patch(f"{IMAP}.fetch_new", return_value=[stale, other]),
+        patch(f"{DPD_CLIENT}.async_track", side_effect=track),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    # Live query fails: yesterday's "Zustellfahrzeug" counts as delivered.
+    failing = _state(hass, entry, "01105033079302")
+    assert failing.state == "delivered"
+    assert failing.attributes["status_text"].startswith("Vermutlich zugestellt")
+    # Live query works and knows better: its status wins.
+    assert _state(hass, entry, "01234567890123").state == "in_transit"
+    assert _summary(hass, entry, "parcels_today") == "0"
