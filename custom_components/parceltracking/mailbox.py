@@ -56,6 +56,24 @@ STALE_DAYS = 30
 # Removed parcels are remembered this long so a rescan does not bring them back.
 IGNORE_DAYS = 60
 
+# How often a carrier is asked for the live status, by the parcel's status.
+# The mailbox is still read on every update; only the carrier queries wait.
+LIVE_INTERVALS = {
+    ParcelStatus.OUT_FOR_DELIVERY: timedelta(minutes=15),
+    ParcelStatus.IN_TRANSIT: timedelta(hours=1),
+    ParcelStatus.EXCEPTION: timedelta(hours=1),
+    ParcelStatus.UNKNOWN: timedelta(hours=1),
+    ParcelStatus.READY_FOR_PICKUP: timedelta(hours=2),
+}
+# Announced parcels and parcels the carrier does not know yet.
+DEFAULT_LIVE_INTERVAL = timedelta(hours=3)
+# Updates run on a fixed interval; a query that is a little early still counts.
+LIVE_SLACK = timedelta(minutes=2)
+# No carrier queries at night (local time): nothing is delivered anyway.
+QUIET_FROM, QUIET_UNTIL = 22, 6
+# Daily query budgets below the carriers' limits (DHL's free key: 250 a day).
+DAILY_LIVE_LIMITS = {"dhl": 200}
+
 
 @dataclass(slots=True)
 class MailParcelView:
@@ -130,6 +148,10 @@ class MailboxCoordinator(DataUpdateCoordinator[dict[str, MailParcelView]]):
         self._live: dict[str, TrackingResult] = {}
         self._keyless_clients: dict[str, CarrierClient] = {}
         self._live_failed: set[str] = set()
+        self._live_unknown: set[str] = set()
+        self._live_checked: dict[str, datetime] = {}
+        # {"date": "2026-11-24", "counts": {"dhl": 12}}
+        self._live_budget: dict[str, Any] = {}
 
     async def _async_setup(self) -> None:
         """Restore parcels found by earlier scans."""
@@ -140,6 +162,7 @@ class MailboxCoordinator(DataUpdateCoordinator[dict[str, MailParcelView]]):
             name: FolderState.from_dict(state)
             for name, state in stored.get("folders", {}).items()
         }
+        self._live_budget = stored.get("live_budget", {})
 
     async def _async_update_data(self) -> dict[str, MailParcelView]:
         """Scan for new mails, then refresh the live status."""
@@ -268,40 +291,91 @@ class MailboxCoordinator(DataUpdateCoordinator[dict[str, MailParcelView]]):
             )
         return self._keyless_clients[carrier]
 
+    def _live_due(self, key: str, record: dict[str, Any], now: datetime) -> bool:
+        """Whether the carrier should be asked again for this parcel."""
+        live = self._live.get(key)
+        status = live.status if live else ParcelStatus(record["status"])
+        last = self._live_checked.get(key)
+        interval = LIVE_INTERVALS.get(status, DEFAULT_LIVE_INTERVAL)
+        return last is None or now - last >= interval - LIVE_SLACK
+
+    def _take_budget(self, carrier: str) -> bool:
+        """Count a query against the carrier's daily budget, if it has one."""
+        if (limit := DAILY_LIVE_LIMITS.get(carrier)) is None:
+            return True
+        today = dt_util.now().date().isoformat()
+        if self._live_budget.get("date") != today:
+            self._live_budget = {"date": today, "counts": {}}
+        counts = self._live_budget["counts"]
+        if counts.get(carrier, 0) >= limit:
+            if counts.get(carrier) == limit:
+                _LOGGER.warning(
+                    "Daily limit of %s live queries to %s reached, "
+                    "showing the mail status until tomorrow",
+                    limit,
+                    carrier,
+                )
+                counts[carrier] = limit + 1
+            return False
+        counts[carrier] = counts.get(carrier, 0) + 1
+        return True
+
     async def _async_update_live(self) -> None:
+        hour = dt_util.now().hour
+        if hour >= QUIET_FROM or hour < QUIET_UNTIL:
+            return
+        now = dt_util.utcnow()
         for key, record in self.packages.items():
             number = record.get("tracking_number")
             if not number or record.get("delivered_at"):
                 continue
-            client = self._client_for(record["carrier"])
-            if client is None:
+            if not self._live_due(key, record, now):
                 continue
+            carrier = record["carrier"]
+            client = self._client_for(carrier)
+            if client is None or not self._take_budget(carrier):
+                continue
+            self._live_checked[key] = now
             try:
                 result = await client.async_track(number)
             except CarrierNotFoundError:
+                self._note_unknown(carrier, number, record)
                 continue
             except CarrierError as err:
                 # Say it once per carrier; it usually fails for every parcel.
-                log = (
-                    _LOGGER.debug
-                    if record["carrier"] in self._live_failed
-                    else _LOGGER.warning
-                )
-                self._live_failed.add(record["carrier"])
-                log(
-                    "Live status from %s for %s failed: %s",
-                    record["carrier"],
-                    number,
-                    err,
-                )
+                log = _LOGGER.debug if carrier in self._live_failed else _LOGGER.warning
+                self._live_failed.add(carrier)
+                log("Live status from %s for %s failed: %s", carrier, number, err)
                 continue
             if result.status in (ParcelStatus.NOT_FOUND, ParcelStatus.UNKNOWN):
+                self._note_unknown(carrier, number, record)
                 continue
             self._live[key] = result
             if result.status is ParcelStatus.DELIVERED:
                 record["delivered_at"] = (
                     result.last_update or dt_util.utcnow()
                 ).isoformat()
+
+    def _note_unknown(self, carrier: str, number: str, record: dict[str, Any]) -> None:
+        """Log once per carrier when it does not know a parcel that is on its way.
+
+        Right after the shipping mail that is normal; once the mail says the
+        parcel is out for delivery the carrier should know it.
+        """
+        if record["status"] not in (
+            ParcelStatus.IN_TRANSIT,
+            ParcelStatus.OUT_FOR_DELIVERY,
+        ):
+            return
+        log = _LOGGER.debug if carrier in self._live_unknown else _LOGGER.warning
+        self._live_unknown.add(carrier)
+        log(
+            "%s does not know %s although the mail says %s; "
+            "showing the mail status (the endpoint may have changed)",
+            carrier,
+            number,
+            record["status"],
+        )
 
     # Views and actions ---------------------------------------------------
 
@@ -342,6 +416,7 @@ class MailboxCoordinator(DataUpdateCoordinator[dict[str, MailParcelView]]):
             "packages": self.packages,
             "ignored": self._ignored,
             "folders": {name: state.as_dict() for name, state in self._folders.items()},
+            "live_budget": self._live_budget,
         }
 
     async def _async_publish(self) -> None:
